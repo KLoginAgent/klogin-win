@@ -429,3 +429,18 @@ pip-selfcheck.json
 # http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,node,angular,macos,venv,virtualenv,dotenv,java,composer
+.codacy/
+
+### .NET / Visual Studio ###
+bin/
+obj/
+.vs/
+*.user
+*.suo
+x64/
+x86/
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.exe
+!installer/

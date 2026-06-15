@@ -1,0 +1,159 @@
+name: Publish Windows Agent Installers
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Installer version channel
+        required: true
+        type: choice
+        options:
+          - stable
+          - stage
+          - dev
+      branch:
+        description: Branch to build from
+        required: true
+        type: string
+        default: main
+
+concurrency:
+  group: publish-windows-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+env:
+  BACKEND_URL: ${{ vars.KLOGIN_BACKEND_URL || 'http://localhost:8000' }}
+
+jobs:
+  build-windows:
+    name: Build MSI and Setup EXE
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      packages: read
+
+    steps:
+      - name: Resolve checkout ref
+        id: checkout-ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.branch }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve version tags and product version
+        id: version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          CHANNEL: ${{ inputs.channel }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          tags=()
+
+          case "$EVENT_NAME" in
+            push)
+              tags=("latest" "stage")
+              product_version="0.0.${RUN_NUMBER}.0"
+              ;;
+            release)
+              tags=("latest" "stable")
+              if [ -n "$RELEASE_TAG" ]; then
+                tags+=("$RELEASE_TAG")
+                if [[ "$RELEASE_TAG" == v* ]]; then
+                  tags+=("${RELEASE_TAG#v}")
+                fi
+              fi
+              semver="${RELEASE_TAG#v}"
+              IFS='.' read -r major minor patch _ <<< "${semver}.0.0.0"
+              product_version="${major}.${minor}.${patch}.0"
+              ;;
+            workflow_dispatch)
+              case "$CHANNEL" in
+                stable) tags=("stable") ;;
+                stage)  tags=("stage") ;;
+                dev)    tags=("dev") ;;
+                *) echo "Unsupported channel: $CHANNEL" >&2; exit 1 ;;
+              esac
+              product_version="0.0.${RUN_NUMBER}.0"
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          tag_csv=$(IFS=,; echo "${tags[*]}")
+          echo "tags=${tag_csv}" >> "$GITHUB_OUTPUT"
+          echo "product_version=${product_version}" >> "$GITHUB_OUTPUT"
+          echo "Version tags: ${tags[*]}"
+          echo "Product version: ${product_version}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.checkout-ref.outputs.ref }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install WiX Toolset
+        run: dotnet tool install --global wix --version 5.0.2
+
+      - name: Build installers
+        shell: pwsh
+        run: |
+          $tags = "${{ steps.version.outputs.tags }}".Split(',')
+          ./installer/build.ps1 `
+            -Configuration Release `
+            -BackendUrl "${{ env.BACKEND_URL }}" `
+            -ProductVersion "${{ steps.version.outputs.product_version }}" `
+            -VersionTags $tags `
+            -SkipTests
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: klogin-windows-${{ github.event_name }}-${{ github.run_id }}
+          path: |
+            dist/installers/**
+            dist/agent/**
+          retention-days: 30
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/installers/**
+
+      - name: Publish summary
+        shell: bash
+        run: |
+          {
+            echo "### Windows installers"
+            echo ""
+            echo "- Product version: \`${{ steps.version.outputs.product_version }}\`"
+            echo "- Version tags: \`${{ steps.version.outputs.tags }}\`"
+            echo "- Backend URL: \`${{ env.BACKEND_URL }}\`"
+            echo ""
+            echo "**Artifacts**"
+            echo '```'
+            ls -1 dist/installers || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
