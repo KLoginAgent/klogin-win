@@ -18,11 +18,21 @@ $CpProject = Join-Path $Root 'src\KLogin.CredentialProvider\KLogin.CredentialPro
 $CpDll = Join-Path $Root "src\KLogin.CredentialProvider\x64\$Configuration\KLoginCredentialProvider.dll"
 $InstallerDir = $PSScriptRoot
 
-Write-Host "==> Restore .NET projects"
-dotnet restore (Join-Path $Root 'KLogin.sln')
+$DotNetProjects = @(
+    (Join-Path $Root 'src\KLogin.Shared\KLogin.Shared.csproj'),
+    (Join-Path $Root 'src\KLogin.Agent\KLogin.Agent.csproj'),
+    (Join-Path $Root 'src\KLogin.Console\KLogin.Console.csproj')
+)
 
-Write-Host "==> Build .NET solution ($Configuration)"
-dotnet build (Join-Path $Root 'KLogin.sln') -c $Configuration --no-restore
+Write-Host "==> Restore .NET projects"
+foreach ($project in $DotNetProjects) {
+    dotnet restore $project
+}
+
+Write-Host "==> Build .NET projects ($Configuration)"
+foreach ($project in $DotNetProjects) {
+    dotnet build $project -c $Configuration --no-restore
+}
 
 if (-not $SkipTests) {
     Write-Host "==> Build console test harness"

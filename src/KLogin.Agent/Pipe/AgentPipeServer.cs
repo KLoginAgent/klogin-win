@@ -179,7 +179,7 @@ public sealed class AgentPipeServer
         };
 
     private static Task WriteResponseAsync(StreamWriter writer, PipeResponse response, CancellationToken ct) =>
-        writer.WriteLineAsync(JsonSerializer.Serialize(response, JsonOptions), ct);
+        writer.WriteLineAsync(JsonSerializer.Serialize(response, JsonOptions).AsMemory(), ct);
 
     private sealed record PipeRequest(
         string Action,
