@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Fragment>
+    <UI Id="KLoginAgentUI">
+      <TextStyle Id="KLogin_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="KLogin_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Dialog Id="ServerUrlDlg" Width="370" Height="270" Title="KLogin Server URL">
+        <Control Id="Title" Type="Text" X="15" Y="15" Width="340" Height="20" NoPrefix="yes" Text="{\KLogin_Font_Title}Backend server URL" />
+        <Control Id="Description" Type="Text" X="20" Y="40" Width="330" Height="40" NoPrefix="yes" Text="{\KLogin_Font_Normal}Enter the URL of your KLogin API server. The agent uses this address to authenticate users and retrieve Windows account mappings." />
+        <Control Id="UrlLabel" Type="Text" X="20" Y="90" Width="80" Height="15" NoPrefix="yes" Text="{\KLogin_Font_Normal}Server URL:" />
+        <Control Id="UrlEdit" Type="Edit" X="20" Y="108" Width="330" Height="18" Property="KLOGIN_BACKEND_URL" Text="{80}" />
+        <Control Id="Hint" Type="Text" X="20" Y="132" Width="330" Height="30" NoPrefix="yes" Text="{\KLogin_Font_Normal}Example: https://klogin.example.com:8000" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(wix.WixUIBack)" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(wix.WixUINext)" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(wix.WixUICancel)" />
+      </Dialog>
+
+      <ui:WixUI Id="WixUI_InstallDir" />
+
+      <!-- Insert server URL dialog after welcome, before install directory -->
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="ServerUrlDlg" Order="2" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2"><![CDATA[0]]></Publish>
+
+      <Publish Dialog="ServerUrlDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <Publish Dialog="ServerUrlDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg"><![CDATA[KLOGIN_BACKEND_URL <> ""]]></Publish>
+
+      <!-- Reset default when returning to the dialog from Welcome -->
+      <Publish Dialog="WelcomeDlg" Control="Next" Property="KLOGIN_BACKEND_URL" Value="$(var.BackendUrl)" Order="1" />
+    </UI>
+  </Fragment>
+
+</Wix>

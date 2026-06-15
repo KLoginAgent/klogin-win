@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <?define UpgradeCode="7C9E5A21-4D8F-4B6E-9C1A-2F3E4D5B6A70" ?>
+  <?define CpClsid="8f3e2a10-4b5c-4d6e-9f01-23456789abcd" ?>
+
+  <Package
+    Name="KLogin Windows Agent"
+    Manufacturer="KLoginAgent"
+    Version="$(var.ProductVersion)"
+    UpgradeCode="$(var.UpgradeCode)"
+    Scope="perMachine"
+    Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of KLogin is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="AgentDir" />
+    <Property Id="KLOGIN_BACKEND_URL" Value="$(var.BackendUrl)" Secure="yes" />
+
+    <UIRef Id="KLoginAgentUI" />
+
+    <Feature Id="MainFeature" Title="KLogin Agent" Level="1">
+      <ComponentGroupRef Id="AgentComponents" />
+      <ComponentRef Id="CredentialProviderDllComponent" />
+      <ComponentRef Id="CredentialProviderRegistration" />
+    </Feature>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="KLogin">
+        <Directory Id="AgentDir" Name="Agent" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="System64Folder" />
+
+    <ComponentGroup Id="AgentComponents" Directory="AgentDir">
+      <Files Include="$(var.AgentPublishDir)**">
+        <Exclude Files="$(var.AgentPublishDir)KLogin.Agent.exe" />
+        <Exclude Files="$(var.AgentPublishDir)appsettings.json" />
+        <Exclude Files="$(var.AgentPublishDir)**\*.pdb" />
+      </Files>
+      <Component Id="AgentServiceComponent" Guid="*">
+        <File Id="AgentExe" Source="$(var.AgentPublishDir)KLogin.Agent.exe" KeyPath="yes" />
+        <ServiceInstall
+          Id="KLoginAgentServiceInstall"
+          Name="KLoginAgent"
+          DisplayName="KLogin Agent"
+          Description="Bridges the Windows lock screen to the KLogin backend."
+          Type="ownProcess"
+          Start="auto"
+          Account="LocalSystem"
+          ErrorControl="normal"
+          Vital="yes" />
+        <ServiceControl
+          Id="KLoginAgentServiceControl"
+          Name="KLoginAgent"
+          Start="install"
+          Stop="both"
+          Remove="uninstall" />
+      </Component>
+      <Component Id="AgentConfigComponent" Guid="*">
+        <File Id="AgentAppSettings" Source="$(var.AgentPublishDir)appsettings.json" KeyPath="yes" />
+        <util:XmlFile
+          Id="SetBackendUrl"
+          File="[#AgentAppSettings]"
+          ElementPath="/configuration/KLogin/BackendBaseUrl"
+          Value="[KLOGIN_BACKEND_URL]"
+          Action="setValue"
+          Permanent="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Component Id="CredentialProviderDllComponent" Directory="System64Folder" Guid="*">
+      <File Id="CpDllFile" Source="$(var.CredentialProviderDll)" Name="KLoginCredentialProvider.dll" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CredentialProviderRegistration" Directory="System64Folder" Guid="*">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{$(var.CpClsid)}">
+        <RegistryValue Type="string" Value="KLogin Credential Provider" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{$(var.CpClsid)}">
+        <RegistryValue Type="string" Value="KLogin Credential Provider" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{$(var.CpClsid)}\InprocServer32">
+        <RegistryValue Type="string" Value="[#CpDllFile]" />
+        <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
+      </RegistryKey>
+    </Component>
+  </Package>
+</Wix>
