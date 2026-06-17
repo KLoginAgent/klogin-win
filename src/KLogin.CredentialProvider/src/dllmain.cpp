@@ -1,4 +1,5 @@
 #include <credentialprovider.h>
+#include <new>
 #include <windows.h>
 
 #include "ClassFactory.h"

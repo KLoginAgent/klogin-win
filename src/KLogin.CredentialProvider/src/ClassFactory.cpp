@@ -2,6 +2,8 @@
 
 #include "KLoginProvider.h"
 
+#include <new>
+
 ClassFactory::ClassFactory() = default;
 ClassFactory::~ClassFactory() = default;
 

@@ -3,6 +3,8 @@
 #include <credentialprovider.h>
 #include <windows.h>
 
+class KLoginCredential;
+
 class KLoginProvider : public ICredentialProvider {
 public:
     KLoginProvider();

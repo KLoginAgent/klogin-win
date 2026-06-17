@@ -14,8 +14,8 @@ std::wstring Utf8ToWide(const std::string& value) {
         return L"";
     }
     const int size = MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, nullptr, 0);
-    std::wstring result(size - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, result.data(), size);
+    std::wstring result(static_cast<size_t>(size - 1), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, &result[0], size);
     return result;
 }
 
@@ -24,8 +24,8 @@ std::string WideToUtf8(const std::wstring& value) {
         return "";
     }
     const int size = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string result(size - 1, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, result.data(), size, nullptr, nullptr);
+    std::string result(static_cast<size_t>(size - 1), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, &result[0], size, nullptr, nullptr);
     return result;
 }
 
@@ -74,7 +74,7 @@ bool JsonGetBool(const std::wstring& json, const std::wstring& key) {
 
 void SecureZeroWide(std::wstring& value) {
     if (!value.empty()) {
-        SecureZeroMemory(value.data(), value.size() * sizeof(wchar_t));
+        SecureZeroMemory(&value[0], value.size() * sizeof(wchar_t));
         value.clear();
     }
 }
