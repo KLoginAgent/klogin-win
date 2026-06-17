@@ -37,7 +37,7 @@ IFACEMETHODIMP_(ULONG) KLoginProvider::Release() {
 }
 
 IFACEMETHODIMP KLoginProvider::SetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus, DWORD) {
-    if (cpus != CPUS_LOGON && cpus != CPUS_UNLOCK) {
+    if (cpus != CPUS_LOGON && cpus != CPUS_UNLOCK_WORKSTATION) {
         return E_NOTIMPL;
     }
     _cpus = cpus;

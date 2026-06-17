@@ -122,7 +122,7 @@ HRESULT PackPasswordLogon(
     }
 
     KERB_INTERACTIVE_UNLOCK_LOGON kiul{};
-    kiul.Logon.MessageType = (cpus == CPUS_UNLOCK) ? KerbWorkstationUnlockLogon : KerbInteractiveLogon;
+    kiul.Logon.MessageType = (cpus == CPUS_UNLOCK_WORKSTATION) ? KerbWorkstationUnlockLogon : KerbInteractiveLogon;
 
     HRESULT hr = CopyUnicodeString(kiul.Logon.LogonDomainName, domain.c_str());
     if (FAILED(hr)) {
