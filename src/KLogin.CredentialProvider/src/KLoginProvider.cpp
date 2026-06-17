@@ -7,8 +7,15 @@
 
 #pragma comment(lib, "shlwapi.lib")
 
-extern const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[];
-extern const DWORD s_fieldCount;
+static const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[] = {
+    { KLoginCredential::FID_LABEL, CPFT_LARGE_TEXT, L"Sign in with KLogin" },
+    { KLoginCredential::FID_USERNAME, CPFT_EDIT_TEXT, L"KLogin username" },
+    { KLoginCredential::FID_PASSWORD, CPFT_PASSWORD_TEXT, L"KLogin password" },
+    { KLoginCredential::FID_MAPPING, CPFT_COMBOBOX, L"Windows account" },
+    { KLoginCredential::FID_SUBMIT, CPFT_SUBMIT_BUTTON, L"Sign in" },
+};
+
+static const DWORD s_fieldCount = KLoginCredential::FID_COUNT;
 
 KLoginProvider::KLoginProvider() = default;
 
