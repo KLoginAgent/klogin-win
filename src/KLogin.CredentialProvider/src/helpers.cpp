@@ -4,7 +4,6 @@
 #include <ntsecapi.h>
 #include <vector>
 
-#pragma comment(lib, "credprov.lib")
 #pragma comment(lib, "secur32.lib")
 
 namespace KLogin {

@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 param(
     [string]$AgentPath = (Join-Path $PSScriptRoot "..\src\KLogin.Agent\bin\Release\net8.0-windows\KLogin.Agent.exe"),
-    [string]$CredentialProviderDll = (Join-Path $PSScriptRoot "..\src\KLogin.CredentialProvider\x64\Release\KLogin.CredentialProvider.dll"),
+    [string]$CredentialProviderDll = (Join-Path $PSScriptRoot "..\src\KLogin.CredentialProvider\x64\Release\KLoginCredentialProvider.dll"),
     [string]$BackendUrl = ""
 )
 
