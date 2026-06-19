@@ -71,8 +71,8 @@
       </Component>
     </ComponentGroup>
 
-    <Component Id="CredentialProviderComponent" Directory="System64Folder" Guid="*">
-      <File Id="CpDllFile" Source="$(var.CredentialProviderDll)" Name="KLoginCredentialProvider.dll" KeyPath="yes" Permanent="yes" />
+    <Component Id="CredentialProviderComponent" Directory="System64Folder" Guid="*" Permanent="yes">
+      <File Id="CpDllFile" Source="$(var.CredentialProviderDll)" Name="KLoginCredentialProvider.dll" KeyPath="yes" />
       <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{$(var.CpClsid)}">
         <RegistryValue Type="string" Value="KLogin Credential Provider" />
       </RegistryKey>
