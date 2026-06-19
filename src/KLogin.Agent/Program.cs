@@ -5,7 +5,7 @@ using KLogin.Shared.Services;
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
-    .AddWindowsService(options => options.ServiceName = "KLogin Agent")
+    .AddWindowsService(options => options.ServiceName = "KLoginAgent")
     .Configure<KLoginOptions>(builder.Configuration.GetSection(KLoginOptions.SectionName))
     .AddSingleton(sp =>
     {
