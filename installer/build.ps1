@@ -79,14 +79,16 @@ if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
 Write-Host "==> Build MSI (ProductVersion=$ProductVersion)"
 Push-Location $InstallerDir
 try {
-    dotnet build .\KLogin.Installer.wixproj -c $Configuration `
+    dotnet restore .\KLogin.Installer.wixproj
+    dotnet build .\KLogin.Installer.wixproj -c $Configuration --no-restore `
         -p:AgentPublishDir="$AgentPublish\\" `
         -p:CredentialProviderDll="$CpDll" `
         -p:BackendUrl="$BackendUrl" `
         -p:ProductVersion="$ProductVersion"
 
     Write-Host "==> Build bootstrapper EXE"
-    dotnet build .\KLogin.Bundle.wixproj -c $Configuration `
+    dotnet restore .\KLogin.Bundle.wixproj
+    dotnet build .\KLogin.Bundle.wixproj -c $Configuration --no-restore `
         -p:AgentPublishDir="$AgentPublish\\" `
         -p:CredentialProviderDll="$CpDll" `
         -p:BackendUrl="$BackendUrl" `
@@ -96,8 +98,8 @@ finally {
     Pop-Location
 }
 
-$MsiPath = Join-Path $InstallerDir "bin\$Configuration\en-US\KLoginAgent.msi"
-$ExePath = Join-Path $InstallerDir "bin\$Configuration\en-US\KLoginAgentSetup.exe"
+$MsiPath = Join-Path $InstallerDir "bin\x64\$Configuration\KLoginAgent.msi"
+$ExePath = Join-Path $InstallerDir "bin\x64\$Configuration\KLoginAgentSetup.exe"
 
 if (-not (Test-Path $MsiPath) -or -not (Test-Path $ExePath)) {
     throw 'Installer outputs were not produced.'

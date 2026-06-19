@@ -15,7 +15,7 @@
     <Chain>
       <MsiPackage
         Id="KLoginAgentMsi"
-        SourceFile="KLoginAgent.msi"
+        SourceFile="$(var.KLogin.Installer.TargetPath)"
         Vital="yes"
         bal:DisplayInternalUICondition="WixBundleAction = 6" />
     </Chain>

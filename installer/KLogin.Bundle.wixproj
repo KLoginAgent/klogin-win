@@ -15,6 +15,6 @@
     <ProjectReference Include="KLogin.Installer.wixproj">
       <Properties>AgentPublishDir=$(AgentPublishDir);CredentialProviderDll=$(CredentialProviderDll);BackendUrl=$(BackendUrl);ProductVersion=$(ProductVersion)</Properties>
     </ProjectReference>
-    <PackageReference Include="WixToolset.Bal.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.BootstrapperApplications.wixext" Version="5.0.2" />
   </ItemGroup>
 </Project>
