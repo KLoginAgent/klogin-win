@@ -2,19 +2,19 @@
   <PropertyGroup>
     <OutputName>KLoginAgentSetup</OutputName>
     <OutputType>Bundle</OutputType>
+    <TargetExt>.exe</TargetExt>
     <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0.0</ProductVersion>
-    <BackendUrl Condition="'$(BackendUrl)' == ''">http://localhost:8000</BackendUrl>
-    <DefineConstants>ProductVersion=$(ProductVersion)</DefineConstants>
+    <KLoginAgentMsi Condition="'$(KLoginAgentMsi)' == ''">bin\x64\Release\KLoginAgent.msi</KLoginAgentMsi>
+    <DefineConstants>ProductVersion=$(ProductVersion);KLoginAgentMsi=$(KLoginAgentMsi)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Bundle.wxs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="KLogin.Installer.wixproj">
-      <Properties>AgentPublishDir=$(AgentPublishDir);CredentialProviderDll=$(CredentialProviderDll);BackendUrl=$(BackendUrl);ProductVersion=$(ProductVersion)</Properties>
-    </ProjectReference>
-    <PackageReference Include="WixToolset.BootstrapperApplications.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Bal.wixext" Version="5.0.2" />
   </ItemGroup>
+  <Target Name="CollectSuggestedVisualStudioComponentIds" />
 </Project>

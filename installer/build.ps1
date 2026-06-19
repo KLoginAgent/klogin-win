@@ -87,11 +87,12 @@ try {
         -p:ProductVersion="$ProductVersion"
 
     Write-Host "==> Build bootstrapper EXE"
-    dotnet restore .\KLogin.Bundle.wixproj
-    dotnet build .\KLogin.Bundle.wixproj -c $Configuration --no-restore `
-        -p:AgentPublishDir="$AgentPublish\\" `
-        -p:CredentialProviderDll="$CpDll" `
-        -p:BackendUrl="$BackendUrl" `
+    $MsiPath = Join-Path $InstallerDir "bin\x64\$Configuration\KLoginAgent.msi"
+    if (-not (Test-Path $MsiPath)) {
+        throw "MSI not found at $MsiPath"
+    }
+    dotnet build .\KLogin.Bundle.wixproj -c $Configuration `
+        -p:KLoginAgentMsi="$MsiPath" `
         -p:ProductVersion="$ProductVersion"
 }
 finally {
