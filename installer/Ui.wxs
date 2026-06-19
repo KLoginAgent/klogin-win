@@ -26,9 +26,6 @@
 
       <Publish Dialog="ServerUrlDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
       <Publish Dialog="ServerUrlDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition='KLOGIN_BACKEND_URL &lt;&gt; ""' />
-
-      <!-- Reset default when returning to the dialog from Welcome -->
-      <Publish Dialog="WelcomeDlg" Control="Next" Property="KLOGIN_BACKEND_URL" Value="$(var.BackendUrl)" Order="1" />
     </UI>
   </Fragment>
 

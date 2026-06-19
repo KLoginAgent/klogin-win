@@ -87,6 +87,9 @@ try {
 
     Write-Host "==> Build bootstrapper EXE"
     dotnet build .\KLogin.Bundle.wixproj -c $Configuration `
+        -p:AgentPublishDir="$AgentPublish\\" `
+        -p:CredentialProviderDll="$CpDll" `
+        -p:BackendUrl="$BackendUrl" `
         -p:ProductVersion="$ProductVersion"
 }
 finally {

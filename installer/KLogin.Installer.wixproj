@@ -4,7 +4,9 @@
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
     <InstallerPlatform>x64</InstallerPlatform>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0.0</ProductVersion>
+    <BackendUrl Condition="'$(BackendUrl)' == ''">http://localhost:8000</BackendUrl>
     <DefineConstants>
       AgentPublishDir=$(AgentPublishDir);
       CredentialProviderDll=$(CredentialProviderDll);
@@ -13,10 +15,11 @@
     </DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
-    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <Compile Include="Package.wxs" />
+    <Compile Include="Ui.wxs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="Bundle.wxs" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
   </ItemGroup>
 </Project>
