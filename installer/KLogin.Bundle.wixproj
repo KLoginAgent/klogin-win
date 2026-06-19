@@ -10,4 +10,8 @@
     <ProjectReference Include="KLogin.Installer.wixproj" />
     <PackageReference Include="WixToolset.Bal.wixext" Version="5.0.2" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Package.wxs" />
+    <Compile Remove="Ui.wxs" />
+  </ItemGroup>
 </Project>

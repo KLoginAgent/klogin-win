@@ -16,4 +16,7 @@
     <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
     <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Bundle.wxs" />
+  </ItemGroup>
 </Project>
