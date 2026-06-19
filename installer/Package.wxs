@@ -23,8 +23,7 @@
 
     <Feature Id="MainFeature" Title="KLogin Agent" Level="1">
       <ComponentGroupRef Id="AgentComponents" />
-      <ComponentRef Id="CredentialProviderDllComponent" />
-      <ComponentRef Id="CredentialProviderRegistration" />
+      <ComponentRef Id="CredentialProviderComponent" />
     </Feature>
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -72,11 +71,8 @@
       </Component>
     </ComponentGroup>
 
-    <Component Id="CredentialProviderDllComponent" Directory="System64Folder" Guid="*">
-      <File Id="CpDllFile" Source="$(var.CredentialProviderDll)" Name="KLoginCredentialProvider.dll" KeyPath="yes" />
-    </Component>
-
-    <Component Id="CredentialProviderRegistration" Directory="System64Folder" Guid="*">
+    <Component Id="CredentialProviderComponent" Directory="System64Folder" Guid="*">
+      <File Id="CpDllFile" Source="$(var.CredentialProviderDll)" Name="KLoginCredentialProvider.dll" KeyPath="yes" Permanent="yes" />
       <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{$(var.CpClsid)}">
         <RegistryValue Type="string" Value="KLogin Credential Provider" />
       </RegistryKey>

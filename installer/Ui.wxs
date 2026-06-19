@@ -26,6 +26,7 @@
 
       <Publish Dialog="ServerUrlDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
       <Publish Dialog="ServerUrlDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition='KLOGIN_BACKEND_URL &lt;&gt; ""' />
+      <Publish Dialog="ServerUrlDlg" Control="Cancel" Event="SpawnDialog" Value="CancelDlg" />
     </UI>
   </Fragment>
 
