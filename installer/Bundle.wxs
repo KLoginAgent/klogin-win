@@ -9,7 +9,7 @@
     UpgradeCode="9A4B2C10-7E6D-4F8A-B1C2-3D4E5F607182">
 
     <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" />
+      <bal:WixStandardBootstrapperApplication Theme="none" />
     </BootstrapperApplication>
 
     <Chain>
