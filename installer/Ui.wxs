@@ -13,9 +13,9 @@
         <Control Id="UrlLabel" Type="Text" X="20" Y="90" Width="80" Height="15" NoPrefix="yes" Text="{\KLogin_Font_Normal}Server URL:" />
         <Control Id="UrlEdit" Type="Edit" X="20" Y="108" Width="330" Height="18" Property="KLOGIN_BACKEND_URL" Text="{80}" />
         <Control Id="Hint" Type="Text" X="20" Y="132" Width="330" Height="30" NoPrefix="yes" Text="{\KLogin_Font_Normal}Example: https://klogin.example.com:8000" />
-        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(wix.WixUIBack)" />
-        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(wix.WixUINext)" />
-        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(wix.WixUICancel)" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel" />
       </Dialog>
 
       <ui:WixUI Id="WixUI_InstallDir" />
