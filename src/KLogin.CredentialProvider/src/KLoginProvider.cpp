@@ -1,6 +1,7 @@
 #include "KLoginProvider.h"
 
 #include "KLoginCredential.h"
+#include "helpers.h"
 
 #include <new>
 #include <shlwapi.h>
@@ -48,12 +49,15 @@ IFACEMETHODIMP_(ULONG) KLoginProvider::Release() {
 
 IFACEMETHODIMP KLoginProvider::SetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus, DWORD) {
     if (cpus != CPUS_LOGON && cpus != CPUS_UNLOCK_WORKSTATION) {
+        KLogin::LogCp(L"SetUsageScenario: unsupported scenario");
         return E_NOTIMPL;
     }
     _cpus = cpus;
+    KLogin::LogCp(cpus == CPUS_LOGON ? L"SetUsageScenario: CPUS_LOGON" : L"SetUsageScenario: CPUS_UNLOCK_WORKSTATION");
     if (!_pCredential) {
         _pCredential = new (std::nothrow) KLoginCredential(_cpus);
         if (!_pCredential) {
+            KLogin::LogCp(L"SetUsageScenario: failed to allocate credential");
             return E_OUTOFMEMORY;
         }
     }
@@ -108,8 +112,16 @@ IFACEMETHODIMP KLoginProvider::GetCredentialCount(DWORD* pdwCount, DWORD* pdwDef
 }
 
 IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProviderCredential** ppcpc) {
-    if (dwIndex != 0 || !ppcpc || !_pCredential) {
+    if (dwIndex != 0 || !ppcpc) {
         return E_INVALIDARG;
+    }
+    if (!_pCredential) {
+        const auto scenario = _cpus != CPUS_INVALID ? _cpus : CPUS_LOGON;
+        _pCredential = new (std::nothrow) KLoginCredential(scenario);
+        if (!_pCredential) {
+            KLogin::LogCp(L"GetCredentialAt: failed to allocate credential");
+            return E_OUTOFMEMORY;
+        }
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;

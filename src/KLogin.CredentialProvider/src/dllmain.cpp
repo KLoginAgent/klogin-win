@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "ClassFactory.h"
+#define INITGUID
 #include "guid.h"
 
 HINSTANCE g_hInstance = nullptr;

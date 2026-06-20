@@ -9,6 +9,7 @@ $CpClsid = '{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}'
 $CpFilterClsid = '{8f3e2a10-4b5c-4d6e-9f01-23456789abce}'
 $SystemDll = "$env:Windir\System32\KLoginCredentialProvider.dll"
 $AgentDir = "${env:ProgramFiles}\KLogin\Agent"
+$CpLog = "$env:ProgramData\KLogin\credential-provider.log"
 
 function Write-Check([bool]$Ok, [string]$Message) {
     $symbol = if ($Ok) { '[OK]' } else { '[!!]' }
@@ -54,6 +55,41 @@ $filterClsidReg = "HKLM:\SOFTWARE\Classes\CLSID\$CpFilterClsid\InprocServer32"
 $filterClsidOk = Test-Path $filterClsidReg
 Write-Check $filterClsidOk 'Filter CLSID InprocServer32 registration'
 
+Write-Host "`nRegistered credential providers:" -ForegroundColor Cyan
+Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers' |
+    ForEach-Object { Write-Host "  $($_.PSChildName) = $((Get-ItemProperty $_.PSPath).'(default)')" }
+
+Write-Host "`nRegistered credential provider filters:" -ForegroundColor Cyan
+Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters' -ErrorAction SilentlyContinue |
+    ForEach-Object { Write-Host "  $($_.PSChildName) = $((Get-ItemProperty $_.PSPath).'(default)')" }
+
+if ($dllExists) {
+    Write-Host "`nNative DLL load test:" -ForegroundColor Cyan
+    $loadCode = @'
+using System;
+using System.Runtime.InteropServices;
+public static class NativeLoad {
+  [DllImport("kernel32", SetLastError=true, CharSet=CharSet.Unicode)]
+  public static extern IntPtr LoadLibraryW(string path);
+  [DllImport("kernel32", SetLastError=true)]
+  public static extern bool FreeLibrary(IntPtr h);
+}
+'@
+    try {
+        Add-Type -TypeDefinition $loadCode -ErrorAction Stop | Out-Null
+        $h = [NativeLoad]::LoadLibraryW($SystemDll)
+        if ($h -eq [IntPtr]::Zero) {
+            $err = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+            Write-Check $false "LoadLibrary failed (Win32 error $err). Install Microsoft VC++ 2015-2022 x64 Redistributable."
+        } else {
+            Write-Check $true 'LoadLibrary succeeded'
+            [NativeLoad]::FreeLibrary($h) | Out-Null
+        }
+    } catch {
+        Write-Check $false "LoadLibrary test failed: $($_.Exception.Message)"
+    }
+}
+
 $agentReg = Get-ItemProperty -Path 'HKLM:\SOFTWARE\KLoginAgent' -ErrorAction SilentlyContinue
 if ($agentReg) {
     Write-Check $true "Backend URL (registry): $($agentReg.BackendBaseUrl)"
@@ -70,14 +106,19 @@ if (Test-Path $appSettings) {
     Write-Host "    appsettings BackendBaseUrl: $($config.KLogin.BackendBaseUrl)"
 }
 
-Write-Host "`nLock screen behavior (current build):" -ForegroundColor Cyan
+Write-Host "`nLocal Windows accounts (these are the user tiles on the lock screen):" -ForegroundColor Cyan
+Get-LocalUser | Where-Object Enabled | ForEach-Object { Write-Host "  $($_.Name)" }
+
+Write-Host "`nLock screen notes:" -ForegroundColor Cyan
 Write-Host @"
-- After install, REBOOT (sign-out alone is often not enough).
-- KLogin should be the only sign-in tile (filter hides Windows password/PIN/Hello).
-- Emergency access: click 'Emergency local administrator sign-in' on the KLogin tile.
-- Recovery: set HKLM\SOFTWARE\KLoginAgent\ShowAllCredentialProviders=1 (DWORD), then reboot.
-- If KLogin still does not appear, check Event Viewer:
-  Windows Logs > Application, filter for 'Credential' or source 'Microsoft-Windows-Winlogon'.
+- The user tiles you see (e.g. kiosk, Administrator) are LOCAL WINDOWS ACCOUNTS — not KLogin.
+  KLogin maps your KLogin username to one of those accounts after you authenticate.
+- KLogin appears as its own sign-in tile, or under 'Sign-in options' (shield icon, bottom-left).
+- After install or upgrade, REBOOT — sign-out is usually not enough.
+- If password sign-in disappeared, run:
+    New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
+  then reboot to restore Windows password login while troubleshooting.
+- After reboot + failed sign-in, check: $CpLog
 "@
 
 Write-Host "`nQuick pipe test (agent must be running):" -ForegroundColor Cyan
@@ -91,8 +132,13 @@ Write-Host @'
   $client.Close()
 '@
 
+if (Test-Path $CpLog) {
+    Write-Host "`nRecent credential provider log:" -ForegroundColor Cyan
+    Get-Content $CpLog -Tail 10 | ForEach-Object { Write-Host "  $_" }
+}
+
 if (-not $dllExists -or -not $cpRegOk) {
-    Write-Host "`nCredential Provider is missing or not registered. Re-run the MSI or install.ps1." -ForegroundColor Red
+    Write-Host "`nCredential Provider is missing or not registered. Re-run the latest MSI." -ForegroundColor Red
     exit 1
 }
 
@@ -105,4 +151,4 @@ if ($service -and $service.Status -ne 'Running') {
     exit 1
 }
 
-Write-Host "`nInstall looks complete. Reboot to load the credential provider." -ForegroundColor Green
+Write-Host "`nInstall looks complete. Reboot, then look for KLogin under Sign-in options." -ForegroundColor Green

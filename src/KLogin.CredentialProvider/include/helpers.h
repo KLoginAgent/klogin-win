@@ -22,5 +22,6 @@ HRESULT PackPasswordLogon(
     DWORD* cbSerialized);
 
 void SecureZeroWide(std::wstring& value);
+void LogCp(const wchar_t* message);
 
 }  // namespace KLogin

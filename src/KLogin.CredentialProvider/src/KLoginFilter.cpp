@@ -1,8 +1,8 @@
 #include "KLoginFilter.h"
 
 #include "guid.h"
+#include "helpers.h"
 
-#include <initguid.h>
 #include <shlwapi.h>
 
 #pragma comment(lib, "shlwapi.lib")
@@ -90,6 +90,20 @@ IFACEMETHODIMP KLoginFilter::Filter(
     }
 
     if (ShowAllCredentialProviders()) {
+        return S_OK;
+    }
+
+    bool kloginPresent = false;
+    for (DWORD i = 0; i < cProviders; ++i) {
+        if (IsEqualGUID(rgclsidProviders[i], CLSID_KLoginCredentialProvider)) {
+            kloginPresent = true;
+            break;
+        }
+    }
+
+    // Never hide built-in providers unless KLogin is actually being loaded.
+    if (!kloginPresent) {
+        KLogin::LogCp(L"Filter: KLogin provider not in enumeration; leaving all providers enabled");
         return S_OK;
     }
 

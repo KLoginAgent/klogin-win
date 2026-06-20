@@ -2,11 +2,53 @@
 
 #include <credentialprovider.h>
 #include <ntsecapi.h>
+#include <strsafe.h>
 #include <vector>
 
 #pragma comment(lib, "secur32.lib")
 
 namespace KLogin {
+
+void LogCp(const wchar_t* message) {
+    if (!message) {
+        return;
+    }
+
+    CreateDirectoryW(L"C:\\ProgramData\\KLogin", nullptr);
+
+    SYSTEMTIME st{};
+    GetLocalTime(&st);
+
+    wchar_t line[512]{};
+    StringCchPrintfW(
+        line,
+        _countof(line),
+        L"[%04u-%02u-%02u %02u:%02u:%02u] %s\r\n",
+        st.wYear,
+        st.wMonth,
+        st.wDay,
+        st.wHour,
+        st.wMinute,
+        st.wSecond,
+        message);
+
+    const HANDLE file = CreateFileW(
+        L"C:\\ProgramData\\KLogin\\credential-provider.log",
+        FILE_APPEND_DATA,
+        FILE_SHARE_READ,
+        nullptr,
+        OPEN_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    DWORD written = 0;
+    const DWORD byteLen = static_cast<DWORD>(wcslen(line) * sizeof(wchar_t));
+    WriteFile(file, line, byteLen, &written, nullptr);
+    CloseHandle(file);
+}
 
 std::wstring Utf8ToWide(const std::string& value) {
     if (value.empty()) {

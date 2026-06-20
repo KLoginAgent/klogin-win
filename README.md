@@ -135,28 +135,20 @@ msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.kumpe.app/api" /qn
 
 ### Lock screen not showing KLogin?
 
-The credential provider filter hides Windows password/PIN/Hello providers so **KLogin is the primary lock screen**. Emergency local admin access is available via a command link on the KLogin tile.
+**Seeing two user tiles (e.g. kiosk, Administrator)?** That is normal. Those are **local Windows accounts** created on the PC. KLogin does not replace that list — it adds a **KLogin sign-in tile** (or an entry under **Sign-in options**). After KLogin auth, the agent logs you into the mapped Windows account automatically.
 
-1. **Reboot** after install (sign-out alone often is not enough — winlogon loads providers at boot).
-2. Run `.\installer\verify-install.ps1` as Administrator — confirms service, DLL, provider, and **filter** registry keys.
-3. Confirm **KLoginAgent** service is **Running** (`services.msc`).
-4. Check **Event Viewer → Windows Logs → Application** for credential-provider load errors after reboot.
-5. Azure AD / Entra-joined PCs may hide third-party credential providers via policy.
+1. **Reboot** after install (sign-out alone often is not enough).
+2. On the lock screen, look for **Sign-in options** (bottom-left shield icon) → **KLogin**.
+3. Run `C:\Program Files\KLogin\Agent\verify-install.ps1` as Administrator.
+4. After a reboot + sign-in attempt, check `C:\ProgramData\KLogin\credential-provider.log` for load errors.
+5. If Windows password login disappeared, restore it while troubleshooting:
+   ```powershell
+   New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
+   # Reboot
+   ```
+6. Install [Microsoft VC++ 2015-2022 x64 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) if `verify-install.ps1` reports LoadLibrary failure.
 
-**Emergency recovery** (restore Windows password sign-in):
-
-```powershell
-New-ItemProperty -Path HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
-# Reboot
-```
-
-Expected registry:
-
-- Provider CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}`
-- Filter CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abce}`
-- `HKLM\SOFTWARE\Classes\CLSID\{...}\InprocServer32` → `C:\Windows\System32\KLoginCredentialProvider.dll`
-
-If KLogin appears but login fails, verify the backend URL (`HKLM\SOFTWARE\KLoginAgent\BackendBaseUrl`) is `https://klogin.kumpe.app/api`.
+**Kiosk / single-user setups:** for a cleaner lock screen, use one local Windows account per machine; KLogin mappings decide which account each user lands in.
 
 ## Pipe protocol
 
