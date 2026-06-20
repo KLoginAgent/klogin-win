@@ -130,7 +130,26 @@ msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.example.com:8000" 
 
 ```powershell
 ./installer/install.ps1 -BackendUrl "http://your-server:8000"
+./installer/verify-install.ps1
 ```
+
+### Lock screen not showing KLogin?
+
+The credential provider **adds** a KLogin tile; it does **not** remove the default Windows password/PIN screen.
+
+1. **Reboot** after install (sign-out alone often is not enough — winlogon loads providers at boot).
+2. On the lock screen, click **Sign-in options** (bottom-left) and pick **KLogin** / **Sign in with KLogin**.
+3. Run `.\installer\verify-install.ps1` as Administrator — confirms service, DLL in `System32`, and registry keys.
+4. Confirm **KLoginAgent** service is **Running** (`services.msc`).
+5. Check **Event Viewer → Windows Logs → Application** for credential-provider load errors after reboot.
+6. Azure AD / Entra-joined PCs may hide third-party credential providers via policy.
+
+Expected registry (CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}`):
+
+- `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{...}`
+- `HKLM\SOFTWARE\Classes\CLSID\{...}\InprocServer32` → `C:\Windows\System32\KLoginCredentialProvider.dll`
+
+If KLogin appears but login fails, verify the backend URL (`HKLM\SOFTWARE\KLoginAgent\BackendBaseUrl`) reaches your server, e.g. `https://klogin.kumpe.app` (no `:8080` — API is on the same host via Caddy).
 
 ## Pipe protocol
 

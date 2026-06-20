@@ -50,4 +50,11 @@ New-Item -Path "$clsidReg\InprocServer32" -Force | Out-Null
 Set-ItemProperty -Path "$clsidReg\InprocServer32" -Name "(default)" -Value $SystemDll
 Set-ItemProperty -Path "$clsidReg\InprocServer32" -Name "ThreadingModel" -Value "Apartment"
 
-Write-Host "KLogin installed. Sign out to test the lock-screen tile."
+Write-Host "KLogin installed."
+Write-Host ""
+Write-Host "IMPORTANT — lock screen behavior:"
+Write-Host "  • KLogin adds a sign-in option; it does NOT remove the default Windows password/PIN screen."
+Write-Host "  • REBOOT this PC (sign-out alone is often not enough for the credential provider to load)."
+Write-Host "  • On the lock screen, click 'Sign-in options' and choose the KLogin tile."
+Write-Host ""
+Write-Host "Run .\verify-install.ps1 to confirm the service, DLL, and registry keys."
