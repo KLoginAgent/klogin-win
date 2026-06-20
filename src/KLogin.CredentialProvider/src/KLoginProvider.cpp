@@ -1,6 +1,7 @@
 #include "KLoginProvider.h"
 
 #include "KLoginCredential.h"
+#include "guid.h"
 #include "helpers.h"
 
 #include <new>
@@ -14,15 +15,15 @@ namespace {
 const GUID kGuidNull{};
 
 static const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[] = {
-    { KLoginCredential::FID_TILE, L"KLogin", CPFT_TILE_IMAGE, CPFG_CREDENTIAL_PROVIDER_LOGO },
-    { KLoginCredential::FID_LABEL, L"Sign in with KLogin", CPFT_LARGE_TEXT, kGuidNull },
-    { KLoginCredential::FID_USERNAME, L"KLogin username", CPFT_EDIT_TEXT, kGuidNull },
-    { KLoginCredential::FID_PASSWORD, L"KLogin password", CPFT_PASSWORD_TEXT, kGuidNull },
-    { KLoginCredential::FID_MAPPING, L"Windows account", CPFT_COMBOBOX, kGuidNull },
-    { KLoginCredential::FID_SUBMIT, L"Sign in", CPFT_SUBMIT_BUTTON, kGuidNull },
-    { KLoginCredential::FID_EMERGENCY_LINK, L"Emergency local administrator sign-in", CPFT_COMMAND_LINK, kGuidNull },
-    { KLoginCredential::FID_LOCAL_USER, L"Local username", CPFT_EDIT_TEXT, kGuidNull },
-    { KLoginCredential::FID_LOCAL_PASS, L"Local password", CPFT_PASSWORD_TEXT, kGuidNull },
+    { KLoginCredential::FID_TILE, CPFT_TILE_IMAGE, L"KLogin", KLOGIN_CPFG_CREDENTIAL_PROVIDER_LOGO },
+    { KLoginCredential::FID_LABEL, CPFT_LARGE_TEXT, L"Sign in with KLogin", kGuidNull },
+    { KLoginCredential::FID_USERNAME, CPFT_EDIT_TEXT, L"KLogin username", kGuidNull },
+    { KLoginCredential::FID_PASSWORD, CPFT_PASSWORD_TEXT, L"KLogin password", kGuidNull },
+    { KLoginCredential::FID_MAPPING, CPFT_COMBOBOX, L"Windows account", kGuidNull },
+    { KLoginCredential::FID_SUBMIT, CPFT_SUBMIT_BUTTON, L"Sign in", kGuidNull },
+    { KLoginCredential::FID_EMERGENCY_LINK, CPFT_COMMAND_LINK, L"Emergency local administrator sign-in", kGuidNull },
+    { KLoginCredential::FID_LOCAL_USER, CPFT_EDIT_TEXT, L"Local username", kGuidNull },
+    { KLoginCredential::FID_LOCAL_PASS, CPFT_PASSWORD_TEXT, L"Local password", kGuidNull },
 };
 
 static const DWORD s_fieldCount = KLoginCredential::FID_COUNT;
@@ -70,8 +71,8 @@ void KLoginProvider::SyncTargetUserSid() {
     }
 
     DWORD count = 0;
-    if (FAILED(_pUserArray->GetUserCount(&count))) {
-        KLogin::LogCp(L"SetUserArray: GetUserCount failed");
+    if (FAILED(_pUserArray->GetCount(&count))) {
+        KLogin::LogCp(L"SetUserArray: GetCount failed");
         if (_pCredential) {
             _pCredential->SetTargetUserSid(_userSid);
         }
