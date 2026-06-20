@@ -59,6 +59,7 @@ if (Test-Path $AppSettings) {
 Copy-Item (Join-Path $InstallerDir 'verify-install.ps1') (Join-Path $AgentPublish 'verify-install.ps1') -Force
 Copy-Item (Join-Path $InstallerDir 'test-cp-com.ps1') (Join-Path $AgentPublish 'test-cp-com.ps1') -Force
 Copy-Item (Join-Path $InstallerDir 'uninstall.ps1') (Join-Path $AgentPublish 'uninstall.ps1') -Force
+Copy-Item (Join-Path $InstallerDir 'repair-login.ps1') (Join-Path $AgentPublish 'repair-login.ps1') -Force
 
 Write-Host "==> Build Credential Provider ($Configuration|x64)"
 $Msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `

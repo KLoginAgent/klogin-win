@@ -1,9 +1,9 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Test COM instantiation of the KLogin credential provider outside the lock screen.
+    Test COM registration of the KLogin credential provider outside the lock screen.
 #>
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 
 $CpClsid = [Guid]'{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}'
 $FilterClsid = [Guid]'{8f3e2a10-4b5c-4d6e-9f01-23456789abce}'
@@ -22,7 +22,11 @@ foreach ($pair in @(
     )) {
     Write-Host "Creating $($pair.Name)..."
     try {
-        $obj = [Activator]::CreateInstance($pair.Clsid)
+        $type = [Type]::GetTypeFromCLSID($pair.Clsid)
+        if ($null -eq $type) {
+            throw 'GetTypeFromCLSID returned null (registry missing or wrong CLSID path)'
+        }
+        $obj = [Activator]::CreateInstance($type)
         if ($null -eq $obj) {
             throw 'CreateInstance returned null'
         }
@@ -34,10 +38,16 @@ foreach ($pair in @(
 }
 
 if (Test-Path $CpLog) {
-    Write-Host "`nCredential provider log:" -ForegroundColor Cyan
+    Write-Host "`nCredential provider log (best lock-screen diagnostic):" -ForegroundColor Cyan
     Get-Content $CpLog -Tail 20 | ForEach-Object { Write-Host "  $_" }
+    $hasLogon = Select-String -Path $CpLog -Pattern 'SetUsageScenario: CPUS_LOGON' -Quiet
+    $hasTile = Select-String -Path $CpLog -Pattern 'GetCredentialCount: returning 1 tile' -Quiet
+    if ($hasLogon -and $hasTile) {
+        Write-Host "`n  => Winlogon IS loading KLogin on the lock screen." -ForegroundColor Green
+        Write-Host "     Click a user tile, then Sign-in options. Look for 'Sign in with KLogin'." -ForegroundColor Green
+    }
 } else {
-    Write-Host "`nNo log yet at $CpLog" -ForegroundColor Yellow
+    Write-Host "`nNo log yet at $CpLog — visit the lock screen once, then re-run this script." -ForegroundColor Yellow
 }
 
-Write-Host "`nIf COM creation succeeds but KLogin is missing on the lock screen, reboot after reinstall." -ForegroundColor Yellow
+Write-Host "`nNote: COM test failure here does not mean the CP is broken if the log shows CPUS_LOGON." -ForegroundColor Yellow

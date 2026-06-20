@@ -9,7 +9,7 @@
 
 #include "pipe_client.h"
 
-class KLoginCredential : public ICredentialProviderCredential {
+class KLoginCredential : public ICredentialProviderCredential2 {
 public:
     enum FieldId : DWORD {
         FID_LABEL = 0,
@@ -47,6 +47,7 @@ public:
     IFACEMETHODIMP CommandLinkClicked(DWORD dwFieldID) override;
     IFACEMETHODIMP GetSerialization(CREDENTIAL_PROVIDER_GET_SERIALIZATION_RESPONSE* pcpgsr, CREDENTIAL_PROVIDER_CREDENTIAL_SERIALIZATION* pcpcs, LPWSTR* ppwszOptionalStatusText, CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) override;
     IFACEMETHODIMP ReportResult(NTSTATUS ntsStatus, NTSTATUS ntsSubstatus, LPWSTR* ppwszOptionalStatusText, CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) override;
+    IFACEMETHODIMP GetUserSid(LPWSTR* ppwszSid) override;
 
 private:
     enum class Stage { Login, Select, Emergency, Ready };

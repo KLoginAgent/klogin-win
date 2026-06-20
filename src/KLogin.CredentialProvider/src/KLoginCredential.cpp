@@ -22,6 +22,7 @@ KLoginCredential::~KLoginCredential() {
 IFACEMETHODIMP KLoginCredential::QueryInterface(REFIID riid, void** ppv) {
     static const QITAB qit[] = {
         QITABENT(KLoginCredential, ICredentialProviderCredential),
+        QITABENT(KLoginCredential, ICredentialProviderCredential2),
         { 0 },
     };
     return QISearch(this, qit, riid, ppv);
@@ -358,4 +359,13 @@ IFACEMETHODIMP KLoginCredential::ReportResult(NTSTATUS, NTSTATUS, LPWSTR* ppwszO
         *pcpsiOptionalStatusIcon = CPSI_NONE;
     }
     return S_OK;
+}
+
+IFACEMETHODIMP KLoginCredential::GetUserSid(LPWSTR* ppwszSid) {
+    if (!ppwszSid) {
+        return E_INVALIDARG;
+    }
+    // Not tied to a specific Windows user — show in Sign-in options for any selected account.
+    *ppwszSid = nullptr;
+    return S_FALSE;
 }

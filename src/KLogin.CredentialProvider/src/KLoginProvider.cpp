@@ -126,5 +126,6 @@ IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProvide
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;
+    KLogin::LogCp(L"GetCredentialAt: returning credential tile");
     return S_OK;
 }

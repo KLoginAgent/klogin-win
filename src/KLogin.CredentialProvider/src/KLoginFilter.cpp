@@ -50,6 +50,20 @@ bool ShowAllCredentialProviders() {
     return status == ERROR_SUCCESS && value != 0;
 }
 
+bool HideWindowsCredentialProviders() {
+    DWORD value = 0;
+    DWORD size = sizeof(value);
+    const LSTATUS status = RegGetValueW(
+        HKEY_LOCAL_MACHINE,
+        L"SOFTWARE\\KLoginAgent",
+        L"HideWindowsCredentialProviders",
+        RRF_RT_REG_DWORD,
+        nullptr,
+        &value,
+        &size);
+    return status == ERROR_SUCCESS && value != 0;
+}
+
 }  // namespace
 
 KLoginFilter::KLoginFilter() = default;
@@ -90,6 +104,13 @@ IFACEMETHODIMP KLoginFilter::Filter(
     }
 
     if (ShowAllCredentialProviders()) {
+        KLogin::LogCp(L"Filter: ShowAllCredentialProviders=1, not hiding any providers");
+        return S_OK;
+    }
+
+    // Opt-in only. Registration in the provider list does NOT mean enumeration succeeds;
+    // hiding the password provider without a working KLogin tile removes local users.
+    if (!HideWindowsCredentialProviders()) {
         return S_OK;
     }
 
@@ -101,12 +122,12 @@ IFACEMETHODIMP KLoginFilter::Filter(
         }
     }
 
-    // Never hide built-in providers unless KLogin is actually being loaded.
     if (!kloginPresent) {
-        KLogin::LogCp(L"Filter: KLogin provider not in enumeration; leaving all providers enabled");
+        KLogin::LogCp(L"Filter: HideWindowsCredentialProviders set but KLogin not listed; not hiding");
         return S_OK;
     }
 
+    KLogin::LogCp(L"Filter: hiding built-in password/PIN/Hello providers");
     for (DWORD i = 0; i < cProviders; ++i) {
         if (IsEqualGUID(rgclsidProviders[i], CLSID_KLoginCredentialProvider)) {
             rgbAllow[i] = TRUE;

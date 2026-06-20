@@ -130,9 +130,16 @@ Write-Host @"
   KLogin maps your KLogin username to one of those accounts after you authenticate.
 - KLogin appears as its own sign-in tile, or under 'Sign-in options' (shield icon, bottom-left).
 - After install or upgrade, REBOOT — sign-out is usually not enough.
-- If password sign-in disappeared, run:
-    New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
-  then reboot to restore Windows password login while troubleshooting.
+- If password sign-in disappeared or local users vanished from the lock screen, run **repair-login.ps1** as Administrator, then **reboot**:
+  ```powershell
+  & "C:\Program Files\KLogin\Agent\repair-login.ps1"
+  ```
+  Or manually:
+  ```powershell
+  New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
+  Remove-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters\{8f3e2a10-4b5c-4d6e-9f01-23456789abce}" -Recurse -Force -ErrorAction SilentlyContinue
+  # Reboot
+  ```
 - After reboot + failed sign-in, check: $CpLog
 "@
 

@@ -135,20 +135,25 @@ msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.kumpe.app/api" /qn
 
 ### Lock screen not showing KLogin?
 
-**Seeing two user tiles (e.g. kiosk, Administrator)?** That is normal. Those are **local Windows accounts** created on the PC. KLogin does not replace that list — it adds a **KLogin sign-in tile** (or an entry under **Sign-in options**). After KLogin auth, the agent logs you into the mapped Windows account automatically.
+**Local users disappeared / only Microsoft account shows?** The credential provider **filter** was hiding Windows password sign-in while KLogin failed to load. Run as Administrator:
 
-1. **Reboot** after install (sign-out alone often is not enough).
-2. On the lock screen, look for **Sign-in options** (bottom-left shield icon) → **KLogin**.
-3. Run `C:\Program Files\KLogin\Agent\verify-install.ps1` as Administrator.
-4. After a reboot + sign-in attempt, check `C:\ProgramData\KLogin\credential-provider.log` for load errors.
-5. If Windows password login disappeared, restore it while troubleshooting:
-   ```powershell
-   New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
-   # Reboot
-   ```
-6. Install [Microsoft VC++ 2015-2022 x64 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) if `verify-install.ps1` reports LoadLibrary failure.
+```powershell
+& "C:\Program Files\KLogin\Agent\repair-login.ps1"
+# Reboot
+```
 
-**Kiosk / single-user setups:** for a cleaner lock screen, use one local Windows account per machine; KLogin mappings decide which account each user lands in.
+**Seeing two user tiles (e.g. kiosk, Administrator)?** That is normal — those are local Windows accounts. KLogin appears under **Sign-in options** after you click a user tile.
+
+1. **Reboot** after install.
+2. Click a **user tile** → **Sign-in options** → look for **KLogin**.
+3. Run `verify-install.ps1` and `test-cp-com.ps1` as Administrator.
+
+**KLogin-only lock screen (opt-in, after KLogin works):**
+
+```powershell
+New-ItemProperty HKLM:\SOFTWARE\KLoginAgent -Name HideWindowsCredentialProviders -Value 1 -PropertyType DWord -Force
+# Reinstall MSI to re-register filter, then reboot
+```
 
 ## Pipe protocol
 
