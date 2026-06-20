@@ -5,10 +5,12 @@
 #include "helpers.h"
 
 #include <new>
+#include <propkey.h>
 #include <shlwapi.h>
 #include <strsafe.h>
 
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "propsys.lib")
 
 namespace {
 
@@ -114,8 +116,7 @@ void KLoginProvider::SyncTargetUserSid() {
     }
 
     LPWSTR accountName = nullptr;
-    constexpr DWORD kAccountNameField = 1;
-    if (SUCCEEDED(pUser->GetStringValue(kAccountNameField, &accountName)) && accountName) {
+    if (SUCCEEDED(pUser->GetStringValue(PKEY_Identity_AccountName, &accountName)) && accountName) {
         _targetAccountName = accountName;
         CoTaskMemFree(accountName);
         KLogin::LogCp(L"SetUserArray: cached target account name");

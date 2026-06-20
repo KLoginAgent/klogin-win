@@ -421,7 +421,7 @@ IFACEMETHODIMP KLoginCredential::ReportResult(
     NTSTATUS ntsSubstatus,
     LPWSTR* ppwszOptionalStatusText,
     CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) {
-    if (!NT_SUCCESS(ntsStatus)) {
+    if (static_cast<LONG>(ntsStatus) < 0) {
         wchar_t line[128]{};
         StringCchPrintfW(
             line,
