@@ -4,17 +4,42 @@
 #include "guid.h"
 #include "helpers.h"
 
+#include <string>
+
 #include <new>
-#include <propkey.h>
+#include <sddl.h>
 #include <shlwapi.h>
 #include <strsafe.h>
 
 #pragma comment(lib, "shlwapi.lib")
-#pragma comment(lib, "propsys.lib")
+#pragma comment(lib, "advapi32.lib")
 
 namespace {
 
 const GUID kGuidNull{};
+
+static std::wstring AccountNameFromSidString(const wchar_t* sidString) {
+    if (sidString == nullptr || sidString[0] == L'\0') {
+        return L"";
+    }
+
+    PSID psid = nullptr;
+    if (!ConvertStringSidToSidW(sidString, &psid)) {
+        return L"";
+    }
+
+    wchar_t name[256]{};
+    wchar_t domain[256]{};
+    DWORD nameLen = static_cast<DWORD>(_countof(name));
+    DWORD domainLen = static_cast<DWORD>(_countof(domain));
+    SID_NAME_USE use{};
+    std::wstring result;
+    if (LookupAccountSidW(nullptr, psid, name, &nameLen, domain, &domainLen, &use)) {
+        result = name;
+    }
+    LocalFree(psid);
+    return result;
+}
 
 static const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[] = {
     { KLoginCredential::FID_TILE, CPFT_TILE_IMAGE, L"KLogin", KLOGIN_CPFG_CREDENTIAL_PROVIDER_LOGO },
@@ -109,17 +134,14 @@ void KLoginProvider::SyncTargetUserSid() {
     LPWSTR sid = nullptr;
     if (SUCCEEDED(pUser->GetSid(&sid)) && sid) {
         _userSid = sid;
+        _targetAccountName = AccountNameFromSidString(sid);
         CoTaskMemFree(sid);
         KLogin::LogCp(L"SetUserArray: cached target user SID");
+        if (!_targetAccountName.empty()) {
+            KLogin::LogCp(L"SetUserArray: resolved target account name from SID");
+        }
     } else {
         KLogin::LogCp(L"SetUserArray: GetSid failed");
-    }
-
-    LPWSTR accountName = nullptr;
-    if (SUCCEEDED(pUser->GetStringValue(PKEY_Identity_AccountName, &accountName)) && accountName) {
-        _targetAccountName = accountName;
-        CoTaskMemFree(accountName);
-        KLogin::LogCp(L"SetUserArray: cached target account name");
     }
 
     pUser->Release();
