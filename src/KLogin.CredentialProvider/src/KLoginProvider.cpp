@@ -108,6 +108,7 @@ IFACEMETHODIMP KLoginProvider::GetCredentialCount(DWORD* pdwCount, DWORD* pdwDef
     *pdwCount = 1;
     *pdwDefault = 0;
     *pbAutoLogonWithDefault = FALSE;
+    KLogin::LogCp(L"GetCredentialCount: returning 1 tile");
     return S_OK;
 }
 

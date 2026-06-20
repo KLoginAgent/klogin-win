@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "ClassFactory.h"
+#include "helpers.h"
 #define INITGUID
 #include "guid.h"
 
@@ -13,6 +14,10 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
         case DLL_PROCESS_ATTACH:
             g_hInstance = module;
             DisableThreadLibraryCalls(module);
+            KLogin::LogCp(L"DllMain: PROCESS_ATTACH");
+            break;
+        case DLL_PROCESS_DETACH:
+            KLogin::LogCp(L"DllMain: PROCESS_DETACH");
             break;
         default:
             break;

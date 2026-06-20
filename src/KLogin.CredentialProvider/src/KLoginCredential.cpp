@@ -119,6 +119,8 @@ IFACEMETHODIMP KLoginCredential::GetStringValue(DWORD dwFieldID, LPWSTR* ppwsz) 
             return SHStrDupW(_username.c_str(), ppwsz);
         case FID_LOCAL_USER:
             return SHStrDupW(_localUser.c_str(), ppwsz);
+        case FID_EMERGENCY_LINK:
+            return SHStrDupW(L"Emergency local administrator sign-in", ppwsz);
         default:
             return E_NOTIMPL;
     }
@@ -196,7 +198,17 @@ IFACEMETHODIMP KLoginCredential::SetStringValue(DWORD dwFieldID, LPCWSTR pwz) {
 IFACEMETHODIMP KLoginCredential::SetCheckboxValue(DWORD, BOOL) { return E_NOTIMPL; }
 
 IFACEMETHODIMP KLoginCredential::SetComboBoxSelectedValue(DWORD dwFieldID, DWORD dwSelectedItem) {
-    if (dwFieldID != FID_MAPPING || dwSelectedItem >= _options.size()) {
+    if (dwFieldID != FID_MAPPING) {
+        return E_INVALIDARG;
+    }
+    if (_options.empty()) {
+        if (dwSelectedItem == 0) {
+            _selectedMapping = 0;
+            return S_OK;
+        }
+        return E_INVALIDARG;
+    }
+    if (dwSelectedItem >= _options.size()) {
         return E_INVALIDARG;
     }
     _selectedMapping = dwSelectedItem;
