@@ -3,6 +3,9 @@
 #include "guid.h"
 
 #include <initguid.h>
+#include <shlwapi.h>
+
+#pragma comment(lib, "shlwapi.lib")
 
 namespace {
 

@@ -31,7 +31,6 @@ KLoginProvider::~KLoginProvider() {
 IFACEMETHODIMP KLoginProvider::QueryInterface(REFIID riid, void** ppv) {
     static const QITAB qit[] = {
         QITABENT(KLoginProvider, ICredentialProvider),
-        QITABENT(KLoginProvider, ICredentialProvider2),
         { 0 },
     };
     return QISearch(this, qit, riid, ppv);
@@ -114,14 +113,5 @@ IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProvide
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;
-    return S_OK;
-}
-
-IFACEMETHODIMP KLoginProvider::GetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO* cpus, DWORD* pdwFlags) {
-    if (!cpus || !pdwFlags) {
-        return E_INVALIDARG;
-    }
-    *cpus = _cpus;
-    *pdwFlags = 0;
     return S_OK;
 }

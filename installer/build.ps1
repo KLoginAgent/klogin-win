@@ -20,9 +20,12 @@ $InstallerDir = $PSScriptRoot
 
 $DotNetProjects = @(
     (Join-Path $Root 'src\KLogin.Shared\KLogin.Shared.csproj'),
-    (Join-Path $Root 'src\KLogin.Agent\KLogin.Agent.csproj'),
-    (Join-Path $Root 'src\KLogin.Console\KLogin.Console.csproj')
+    (Join-Path $Root 'src\KLogin.Agent\KLogin.Agent.csproj')
 )
+
+if (-not $SkipTests) {
+    $DotNetProjects += (Join-Path $Root 'src\KLogin.Console\KLogin.Console.csproj')
+}
 
 Write-Host "==> Restore .NET projects"
 foreach ($project in $DotNetProjects) {
@@ -32,11 +35,6 @@ foreach ($project in $DotNetProjects) {
 Write-Host "==> Build .NET projects ($Configuration)"
 foreach ($project in $DotNetProjects) {
     dotnet build $project -c $Configuration --no-restore
-}
-
-if (-not $SkipTests) {
-    Write-Host "==> Build console test harness"
-    dotnet build (Join-Path $Root 'src\KLogin.Console\KLogin.Console.csproj') -c $Configuration --no-restore
 }
 
 Write-Host "==> Publish KLogin Agent (win-x64 self-contained)"
