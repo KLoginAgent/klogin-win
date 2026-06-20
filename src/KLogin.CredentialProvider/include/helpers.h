@@ -23,5 +23,6 @@ HRESULT PackPasswordLogon(
 
 void SecureZeroWide(std::wstring& value);
 void LogCp(const wchar_t* message);
+HBITMAP CreateTileBitmap();
 
 }  // namespace KLogin

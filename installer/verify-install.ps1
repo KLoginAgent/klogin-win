@@ -128,7 +128,8 @@ Write-Host "`nLock screen notes:" -ForegroundColor Cyan
 Write-Host @"
 - The user tiles you see (e.g. kiosk, Administrator) are LOCAL WINDOWS ACCOUNTS — not KLogin.
   KLogin maps your KLogin username to one of those accounts after you authenticate.
-- KLogin appears as its own sign-in tile, or under 'Sign-in options' (shield icon, bottom-left).
+- KLogin appears as a blue **K** icon under **Sign-in options** after you click a user tile.
+  It is NOT a separate user tile on the main lock screen.
 - After install or upgrade, REBOOT — sign-out is usually not enough.
 - If password sign-in disappeared or local users vanished from the lock screen, run **repair-login.ps1** as Administrator, then **reboot**:
   ```powershell

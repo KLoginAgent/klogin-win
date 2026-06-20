@@ -10,6 +10,10 @@
 
 KLoginCredential::KLoginCredential(CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus) : _cpus(cpus) {}
 
+void KLoginCredential::SetTargetUserSid(const std::wstring& sid) {
+    _userSid = sid;
+}
+
 KLoginCredential::~KLoginCredential() {
     if (_pEvents) {
         _pEvents->Release();
@@ -73,29 +77,32 @@ IFACEMETHODIMP KLoginCredential::GetFieldState(DWORD dwFieldID, CREDENTIAL_PROVI
 
     *pcpfis = CPFIS_NONE;
     switch (dwFieldID) {
+        case FID_TILE:
+            *pcpfs = CPFS_DISPLAY_IN_DESELECTED_TILE;
+            break;
         case FID_LABEL:
-            *pcpfs = CPFS_DISPLAY_IN_BOTH;
+            *pcpfs = CPFS_DISPLAY_IN_SELECTED_TILE;
             break;
         case FID_USERNAME:
-            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_SELECTED_TILE : CPFS_HIDDEN;
             break;
         case FID_PASSWORD:
-            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_SELECTED_TILE : CPFS_HIDDEN;
             break;
         case FID_MAPPING:
-            *pcpfs = _stage == Stage::Select ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            *pcpfs = _stage == Stage::Select ? CPFS_DISPLAY_IN_SELECTED_TILE : CPFS_HIDDEN;
             break;
         case FID_SUBMIT:
             *pcpfs = (_stage == Stage::Login || _stage == Stage::Select || _stage == Stage::Emergency)
-                ? CPFS_DISPLAY_IN_BOTH
+                ? CPFS_DISPLAY_IN_SELECTED_TILE
                 : CPFS_HIDDEN;
             break;
         case FID_EMERGENCY_LINK:
-            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_SELECTED_TILE : CPFS_HIDDEN;
             break;
         case FID_LOCAL_USER:
         case FID_LOCAL_PASS:
-            *pcpfs = _stage == Stage::Emergency ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            *pcpfs = _stage == Stage::Emergency ? CPFS_DISPLAY_IN_SELECTED_TILE : CPFS_HIDDEN;
             break;
         default:
             return E_INVALIDARG;
@@ -122,12 +129,24 @@ IFACEMETHODIMP KLoginCredential::GetStringValue(DWORD dwFieldID, LPWSTR* ppwsz) 
             return SHStrDupW(_localUser.c_str(), ppwsz);
         case FID_EMERGENCY_LINK:
             return SHStrDupW(L"Emergency local administrator sign-in", ppwsz);
+        case FID_PASSWORD:
+        case FID_LOCAL_PASS:
+            return SHStrDupW(L"", ppwsz);
         default:
             return E_NOTIMPL;
     }
 }
 
-IFACEMETHODIMP KLoginCredential::GetBitmapValue(DWORD, HBITMAP*) { return E_NOTIMPL; }
+IFACEMETHODIMP KLoginCredential::GetBitmapValue(DWORD dwFieldID, HBITMAP* phbmp) {
+    if (dwFieldID != FID_TILE || !phbmp) {
+        return E_INVALIDARG;
+    }
+    *phbmp = KLogin::CreateTileBitmap();
+    if (!*phbmp) {
+        return E_FAIL;
+    }
+    return S_OK;
+}
 IFACEMETHODIMP KLoginCredential::GetCheckboxValue(DWORD, BOOL*, LPWSTR*) { return E_NOTIMPL; }
 
 IFACEMETHODIMP KLoginCredential::GetComboBoxValueCount(DWORD dwFieldID, DWORD* pcItems, DWORD* pdwSelectedItem) {
@@ -365,7 +384,11 @@ IFACEMETHODIMP KLoginCredential::GetUserSid(LPWSTR* ppwszSid) {
     if (!ppwszSid) {
         return E_INVALIDARG;
     }
-    // Not tied to a specific Windows user — show in Sign-in options for any selected account.
     *ppwszSid = nullptr;
-    return S_FALSE;
+    if (_userSid.empty()) {
+        KLogin::LogCp(L"GetUserSid: no target user (S_FALSE)");
+        return S_FALSE;
+    }
+    KLogin::LogCp(L"GetUserSid: returning target user SID (S_OK)");
+    return SHStrDupW(_userSid.c_str(), ppwszSid);
 }

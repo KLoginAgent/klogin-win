@@ -5,21 +5,29 @@
 
 #include <new>
 #include <shlwapi.h>
+#include <strsafe.h>
 
 #pragma comment(lib, "shlwapi.lib")
 
+namespace {
+
+const GUID kGuidNull{};
+
 static const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[] = {
-    { KLoginCredential::FID_LABEL, CPFT_LARGE_TEXT, L"Sign in with KLogin" },
-    { KLoginCredential::FID_USERNAME, CPFT_EDIT_TEXT, L"KLogin username" },
-    { KLoginCredential::FID_PASSWORD, CPFT_PASSWORD_TEXT, L"KLogin password" },
-    { KLoginCredential::FID_MAPPING, CPFT_COMBOBOX, L"Windows account" },
-    { KLoginCredential::FID_SUBMIT, CPFT_SUBMIT_BUTTON, L"Sign in" },
-    { KLoginCredential::FID_EMERGENCY_LINK, CPFT_COMMAND_LINK, L"Emergency local administrator sign-in" },
-    { KLoginCredential::FID_LOCAL_USER, CPFT_EDIT_TEXT, L"Local username" },
-    { KLoginCredential::FID_LOCAL_PASS, CPFT_PASSWORD_TEXT, L"Local password" },
+    { KLoginCredential::FID_TILE, L"KLogin", CPFT_TILE_IMAGE, CPFG_CREDENTIAL_PROVIDER_LOGO },
+    { KLoginCredential::FID_LABEL, L"Sign in with KLogin", CPFT_LARGE_TEXT, kGuidNull },
+    { KLoginCredential::FID_USERNAME, L"KLogin username", CPFT_EDIT_TEXT, kGuidNull },
+    { KLoginCredential::FID_PASSWORD, L"KLogin password", CPFT_PASSWORD_TEXT, kGuidNull },
+    { KLoginCredential::FID_MAPPING, L"Windows account", CPFT_COMBOBOX, kGuidNull },
+    { KLoginCredential::FID_SUBMIT, L"Sign in", CPFT_SUBMIT_BUTTON, kGuidNull },
+    { KLoginCredential::FID_EMERGENCY_LINK, L"Emergency local administrator sign-in", CPFT_COMMAND_LINK, kGuidNull },
+    { KLoginCredential::FID_LOCAL_USER, L"Local username", CPFT_EDIT_TEXT, kGuidNull },
+    { KLoginCredential::FID_LOCAL_PASS, L"Local password", CPFT_PASSWORD_TEXT, kGuidNull },
 };
 
 static const DWORD s_fieldCount = KLoginCredential::FID_COUNT;
+
+}  // namespace
 
 KLoginProvider::KLoginProvider() = default;
 
@@ -27,11 +35,15 @@ KLoginProvider::~KLoginProvider() {
     if (_pCredential) {
         _pCredential->Release();
     }
+    if (_pUserArray) {
+        _pUserArray->Release();
+    }
 }
 
 IFACEMETHODIMP KLoginProvider::QueryInterface(REFIID riid, void** ppv) {
     static const QITAB qit[] = {
         QITABENT(KLoginProvider, ICredentialProvider),
+        QITABENT(KLoginProvider, ICredentialProviderSetUserArray),
         { 0 },
     };
     return QISearch(this, qit, riid, ppv);
@@ -47,6 +59,75 @@ IFACEMETHODIMP_(ULONG) KLoginProvider::Release() {
     return cRef;
 }
 
+void KLoginProvider::SyncTargetUserSid() {
+    _userSid.clear();
+    if (!_pUserArray) {
+        KLogin::LogCp(L"SetUserArray: no user array");
+        if (_pCredential) {
+            _pCredential->SetTargetUserSid(_userSid);
+        }
+        return;
+    }
+
+    DWORD count = 0;
+    if (FAILED(_pUserArray->GetUserCount(&count))) {
+        KLogin::LogCp(L"SetUserArray: GetUserCount failed");
+        if (_pCredential) {
+            _pCredential->SetTargetUserSid(_userSid);
+        }
+        return;
+    }
+
+    wchar_t countLine[64]{};
+    StringCchPrintfW(countLine, _countof(countLine), L"SetUserArray: %u user(s)", count);
+    KLogin::LogCp(countLine);
+
+    if (count == 0) {
+        if (_pCredential) {
+            _pCredential->SetTargetUserSid(_userSid);
+        }
+        return;
+    }
+
+    ICredentialProviderUser* pUser = nullptr;
+    if (FAILED(_pUserArray->GetAt(0, &pUser)) || !pUser) {
+        KLogin::LogCp(L"SetUserArray: GetAt(0) failed");
+        if (_pCredential) {
+            _pCredential->SetTargetUserSid(_userSid);
+        }
+        return;
+    }
+
+    LPWSTR sid = nullptr;
+    if (SUCCEEDED(pUser->GetSid(&sid)) && sid) {
+        _userSid = sid;
+        CoTaskMemFree(sid);
+        KLogin::LogCp(L"SetUserArray: cached target user SID");
+    } else {
+        KLogin::LogCp(L"SetUserArray: GetSid failed");
+    }
+    pUser->Release();
+
+    if (_pCredential) {
+        _pCredential->SetTargetUserSid(_userSid);
+    }
+}
+
+IFACEMETHODIMP KLoginProvider::SetUserArray(ICredentialProviderUserArray* users) {
+    if (_pUserArray) {
+        _pUserArray->Release();
+        _pUserArray = nullptr;
+    }
+
+    if (users) {
+        users->AddRef();
+        _pUserArray = users;
+    }
+
+    SyncTargetUserSid();
+    return S_OK;
+}
+
 IFACEMETHODIMP KLoginProvider::SetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus, DWORD) {
     if (cpus != CPUS_LOGON && cpus != CPUS_UNLOCK_WORKSTATION) {
         KLogin::LogCp(L"SetUsageScenario: unsupported scenario");
@@ -60,6 +141,7 @@ IFACEMETHODIMP KLoginProvider::SetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENAR
             KLogin::LogCp(L"SetUsageScenario: failed to allocate credential");
             return E_OUTOFMEMORY;
         }
+        _pCredential->SetTargetUserSid(_userSid);
     }
     return S_OK;
 }
@@ -90,8 +172,10 @@ IFACEMETHODIMP KLoginProvider::GetFieldDescriptorAt(DWORD dwIndex, CREDENTIAL_PR
         return E_OUTOFMEMORY;
     }
 
+    ZeroMemory(copy, sizeof(CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR));
     copy->dwFieldID = s_fields[dwIndex].dwFieldID;
     copy->cpft = s_fields[dwIndex].cpft;
+    copy->guidFieldType = s_fields[dwIndex].guidFieldType;
     if (FAILED(SHStrDupW(s_fields[dwIndex].pszLabel, &copy->pszLabel))) {
         CoTaskMemFree(copy);
         return E_OUTOFMEMORY;
@@ -123,6 +207,7 @@ IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProvide
             KLogin::LogCp(L"GetCredentialAt: failed to allocate credential");
             return E_OUTOFMEMORY;
         }
+        _pCredential->SetTargetUserSid(_userSid);
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;

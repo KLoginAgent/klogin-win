@@ -6,6 +6,7 @@
 #include <vector>
 
 #pragma comment(lib, "secur32.lib")
+#pragma comment(lib, "gdi32.lib")
 
 namespace KLogin {
 
@@ -235,6 +236,53 @@ cleanupStrings:
         HeapFree(GetProcessHeap(), 0, kiul.Logon.Password.Buffer);
     }
     return hr;
+}
+
+HBITMAP CreateTileBitmap() {
+    constexpr int kSize = 72;
+    HDC hdcScreen = GetDC(nullptr);
+    if (!hdcScreen) {
+        return nullptr;
+    }
+
+    HDC hdcMem = CreateCompatibleDC(hdcScreen);
+    if (!hdcMem) {
+        ReleaseDC(nullptr, hdcScreen);
+        return nullptr;
+    }
+
+    HBITMAP hbmp = CreateCompatibleBitmap(hdcScreen, kSize, kSize);
+    if (!hbmp) {
+        DeleteDC(hdcMem);
+        ReleaseDC(nullptr, hdcScreen);
+        return nullptr;
+    }
+
+    HGDIOBJ oldBitmap = SelectObject(hdcMem, hbmp);
+    const RECT rect = {0, 0, kSize, kSize};
+    HBRUSH fill = CreateSolidBrush(RGB(0, 103, 192));
+    if (fill) {
+        FillRect(hdcMem, &rect, fill);
+        DeleteObject(fill);
+    }
+
+    SetBkMode(hdcMem, TRANSPARENT);
+    SetTextColor(hdcMem, RGB(255, 255, 255));
+    HFONT font = CreateFontW(
+        36, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
+    if (font) {
+        HGDIOBJ oldFont = SelectObject(hdcMem, font);
+        DrawTextW(hdcMem, L"K", 1, const_cast<LPRECT>(&rect), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        SelectObject(hdcMem, oldFont);
+        DeleteObject(font);
+    }
+
+    SelectObject(hdcMem, oldBitmap);
+    DeleteDC(hdcMem);
+    ReleaseDC(nullptr, hdcScreen);
+    return hbmp;
 }
 
 }  // namespace KLogin

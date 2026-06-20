@@ -45,10 +45,15 @@ if (Test-Path $CpLog) {
     Get-Content $CpLog -Tail 20 | ForEach-Object { Write-Host "  $_" }
     $hasLogon = Select-String -Path $CpLog -Pattern 'SetUsageScenario: CPUS_LOGON' -Quiet
     $hasTile = Select-String -Path $CpLog -Pattern 'GetCredentialCount: returning 1 tile' -Quiet
+    $hasSid = Select-String -Path $CpLog -Pattern 'GetUserSid: returning target user SID' -Quiet
     if ($hasLogon -and $hasTile) {
         Write-Host ''
         Write-Host '  => Winlogon IS loading KLogin on the lock screen.' -ForegroundColor Green
-        Write-Host '     Click a user tile, then Sign-in options. Look for Sign in with KLogin.' -ForegroundColor Green
+        if ($hasSid) {
+            Write-Host '  => User SID matched. Look for a blue K icon under Sign-in options.' -ForegroundColor Green
+        } else {
+            Write-Host '  => Click a user tile first, then Sign-in options. Log should show GetUserSid after that.' -ForegroundColor Yellow
+        }
     }
 } else {
     Write-Host ''

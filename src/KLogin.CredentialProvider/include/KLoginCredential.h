@@ -12,7 +12,8 @@
 class KLoginCredential : public ICredentialProviderCredential2 {
 public:
     enum FieldId : DWORD {
-        FID_LABEL = 0,
+        FID_TILE = 0,
+        FID_LABEL,
         FID_USERNAME,
         FID_PASSWORD,
         FID_MAPPING,
@@ -25,6 +26,8 @@ public:
 
     KLoginCredential(CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus);
     virtual ~KLoginCredential();
+
+    void SetTargetUserSid(const std::wstring& sid);
 
     IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override;
     IFACEMETHODIMP_(ULONG) AddRef() override;
@@ -67,6 +70,7 @@ private:
     std::wstring _localUser;
     std::wstring _localPassword;
     std::wstring _statusText;
+    std::wstring _userSid;
 
     HRESULT UpdateFields();
     HRESULT PerformLogin();

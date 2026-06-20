@@ -3,9 +3,11 @@
 #include <credentialprovider.h>
 #include <windows.h>
 
+#include <string>
+
 class KLoginCredential;
 
-class KLoginProvider : public ICredentialProvider {
+class KLoginProvider : public ICredentialProvider, public ICredentialProviderSetUserArray {
 public:
     KLoginProvider();
     virtual ~KLoginProvider();
@@ -22,9 +24,14 @@ public:
     IFACEMETHODIMP GetFieldDescriptorAt(DWORD dwIndex, CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR** ppcpfd) override;
     IFACEMETHODIMP GetCredentialCount(DWORD* pdwCount, DWORD* pdwDefault, BOOL* pbAutoLogonWithDefault) override;
     IFACEMETHODIMP GetCredentialAt(DWORD dwIndex, ICredentialProviderCredential** ppcpc) override;
+    IFACEMETHODIMP SetUserArray(ICredentialProviderUserArray* users) override;
 
 private:
+    void SyncTargetUserSid();
+
     long _cRef = 1;
     CREDENTIAL_PROVIDER_USAGE_SCENARIO _cpus = CPUS_INVALID;
     KLoginCredential* _pCredential = nullptr;
+    ICredentialProviderUserArray* _pUserArray = nullptr;
+    std::wstring _userSid;
 };
