@@ -19,14 +19,18 @@ function Write-Check([bool]$Ok, [string]$Message) {
 
 Write-Host "`nKLogin install verification`n" -ForegroundColor Cyan
 
+$installSignals = @()
+
 $service = Get-Service -Name KLoginAgent -ErrorAction SilentlyContinue
 if ($service) {
+    $installSignals += 'service'
     Write-Check ($service.Status -eq 'Running') "KLoginAgent service: $($service.Status)"
 } else {
     Write-Check $false 'KLoginAgent service not found'
 }
 
 $dllExists = Test-Path $SystemDll
+if ($dllExists) { $installSignals += 'dll' }
 Write-Check $dllExists "Credential Provider DLL: $SystemDll"
 
 if ($dllExists) {
@@ -36,10 +40,12 @@ if ($dllExists) {
 
 $cpReg = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\$CpClsid"
 $cpRegOk = Test-Path $cpReg
+if ($cpRegOk) { $installSignals += 'cp-reg' }
 Write-Check $cpRegOk 'Credential Provider registry key'
 
 $filterReg = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters\$CpFilterClsid"
 $filterRegOk = Test-Path $filterReg
+if ($filterRegOk) { $installSignals += 'filter-reg' }
 Write-Check $filterRegOk 'Credential Provider Filter registry key'
 
 $clsidReg = "HKLM:\SOFTWARE\Classes\CLSID\$CpClsid\InprocServer32"
@@ -90,8 +96,17 @@ public static class NativeLoad {
     }
 }
 
+$agentDirExists = Test-Path $AgentDir
+if ($agentDirExists) { $installSignals += 'agent-dir' }
+if ($agentDirExists) {
+    Write-Check $true "Agent directory: $AgentDir"
+} else {
+    Write-Check $false "Agent directory: $AgentDir"
+}
+
 $agentReg = Get-ItemProperty -Path 'HKLM:\SOFTWARE\KLoginAgent' -ErrorAction SilentlyContinue
 if ($agentReg) {
+    $installSignals += 'agent-reg'
     Write-Check $true "Backend URL (registry): $($agentReg.BackendBaseUrl)"
     if ($agentReg.ShowAllCredentialProviders -eq 1) {
         Write-Host "    ShowAllCredentialProviders=1 (Windows password/PIN providers are NOT hidden)" -ForegroundColor Yellow
@@ -137,8 +152,13 @@ if (Test-Path $CpLog) {
     Get-Content $CpLog -Tail 10 | ForEach-Object { Write-Host "  $_" }
 }
 
+if ($installSignals.Count -eq 0) {
+    Write-Host "`nKLogin is NOT installed (no service, DLL, registry, or agent directory found)." -ForegroundColor Green
+    exit 0
+}
+
 if (-not $dllExists -or -not $cpRegOk) {
-    Write-Host "`nCredential Provider is missing or not registered. Re-run the latest MSI." -ForegroundColor Red
+    Write-Host "`nKLogin is partially installed or broken. Re-run the latest MSI or run uninstall.ps1 to clean up." -ForegroundColor Red
     exit 1
 }
 
