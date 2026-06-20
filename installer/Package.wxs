@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
   <?define UpgradeCode="7C9E5A21-4D8F-4B6E-9C1A-2F3E4D5B6A70" ?>
   <?define CpClsid="8f3e2a10-4b5c-4d6e-9f01-23456789abcd" ?>
@@ -61,13 +60,9 @@
       </Component>
       <Component Id="AgentConfigComponent" Guid="*">
         <File Id="AgentAppSettings" Source="$(var.AgentPublishDir)appsettings.json" KeyPath="yes" />
-        <util:XmlFile
-          Id="SetBackendUrl"
-          File="[#AgentAppSettings]"
-          ElementPath="/configuration/KLogin/BackendBaseUrl"
-          Value="[KLOGIN_BACKEND_URL]"
-          Action="setValue"
-          Permanent="yes" />
+        <RegistryKey Root="HKLM" Key="SOFTWARE\KLoginAgent">
+          <RegistryValue Name="BackendBaseUrl" Type="string" Value="[KLOGIN_BACKEND_URL]" />
+        </RegistryKey>
       </Component>
     </ComponentGroup>
 

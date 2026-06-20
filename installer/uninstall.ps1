@@ -15,4 +15,7 @@ if (Test-Path $clsidReg) { Remove-Item $clsidReg -Recurse -Force }
 
 if (Test-Path $SystemDll) { Remove-Item $SystemDll -Force }
 
+$agentReg = "HKLM:\SOFTWARE\KLoginAgent"
+if (Test-Path $agentReg) { Remove-Item $agentReg -Recurse -Force }
+
 Write-Host "KLogin uninstalled."

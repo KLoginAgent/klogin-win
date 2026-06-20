@@ -30,6 +30,10 @@ if (Test-Path $configPath) {
     $config | ConvertTo-Json -Depth 5 | Set-Content $configPath
 }
 
+$agentReg = "HKLM:\SOFTWARE\KLoginAgent"
+New-Item -Path $agentReg -Force | Out-Null
+Set-ItemProperty -Path $agentReg -Name "BackendBaseUrl" -Value $BackendUrl
+
 sc.exe start KLoginAgent
 
 Write-Host "Installing Credential Provider..."
