@@ -6,6 +6,7 @@
 $ErrorActionPreference = 'Continue'
 
 $CpClsid = '{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}'
+$CpFilterClsid = '{8f3e2a10-4b5c-4d6e-9f01-23456789abce}'
 $SystemDll = "$env:Windir\System32\KLoginCredentialProvider.dll"
 $AgentDir = "${env:ProgramFiles}\KLogin\Agent"
 
@@ -34,7 +35,11 @@ if ($dllExists) {
 
 $cpReg = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\$CpClsid"
 $cpRegOk = Test-Path $cpReg
-Write-Check $cpRegOk "Credential Provider registry key"
+Write-Check $cpRegOk 'Credential Provider registry key'
+
+$filterReg = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters\$CpFilterClsid"
+$filterRegOk = Test-Path $filterReg
+Write-Check $filterRegOk 'Credential Provider Filter registry key'
 
 $clsidReg = "HKLM:\SOFTWARE\Classes\CLSID\$CpClsid\InprocServer32"
 $clsidOk = Test-Path $clsidReg
@@ -45,9 +50,16 @@ if ($clsidOk) {
     Write-Check ($dllPath -eq $SystemDll) 'Registry DLL path matches System32 copy'
 }
 
-$backendUrl = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\KLoginAgent' -ErrorAction SilentlyContinue).BackendBaseUrl
-if ($backendUrl) {
-    Write-Check $true "Backend URL (registry): $backendUrl"
+$filterClsidReg = "HKLM:\SOFTWARE\Classes\CLSID\$CpFilterClsid\InprocServer32"
+$filterClsidOk = Test-Path $filterClsidReg
+Write-Check $filterClsidOk 'Filter CLSID InprocServer32 registration'
+
+$agentReg = Get-ItemProperty -Path 'HKLM:\SOFTWARE\KLoginAgent' -ErrorAction SilentlyContinue
+if ($agentReg) {
+    Write-Check $true "Backend URL (registry): $($agentReg.BackendBaseUrl)"
+    if ($agentReg.ShowAllCredentialProviders -eq 1) {
+        Write-Host "    ShowAllCredentialProviders=1 (Windows password/PIN providers are NOT hidden)" -ForegroundColor Yellow
+    }
 } else {
     Write-Check $false 'Backend URL not set in HKLM\SOFTWARE\KLoginAgent'
 }
@@ -58,12 +70,13 @@ if (Test-Path $appSettings) {
     Write-Host "    appsettings BackendBaseUrl: $($config.KLogin.BackendBaseUrl)"
 }
 
-Write-Host "`nLock screen notes:" -ForegroundColor Cyan
+Write-Host "`nLock screen behavior (current build):" -ForegroundColor Cyan
 Write-Host @"
-- KLogin does NOT remove the default Windows password/PIN screen.
 - After install, REBOOT (sign-out alone is often not enough).
-- On the lock screen, click 'Sign-in options' and look for 'KLogin' / 'Sign in with KLogin'.
-- If KLogin never appears in sign-in options, check Event Viewer:
+- KLogin should be the only sign-in tile (filter hides Windows password/PIN/Hello).
+- Emergency access: click 'Emergency local administrator sign-in' on the KLogin tile.
+- Recovery: set HKLM\SOFTWARE\KLoginAgent\ShowAllCredentialProviders=1 (DWORD), then reboot.
+- If KLogin still does not appear, check Event Viewer:
   Windows Logs > Application, filter for 'Credential' or source 'Microsoft-Windows-Winlogon'.
 "@
 
@@ -83,9 +96,13 @@ if (-not $dllExists -or -not $cpRegOk) {
     exit 1
 }
 
+if (-not $filterRegOk) {
+    Write-Host "`nCredential Provider Filter is not registered. Reinstall with the latest MSI." -ForegroundColor Yellow
+}
+
 if ($service -and $service.Status -ne 'Running') {
     Write-Host "`nAgent service exists but is not running. Try: sc.exe start KLoginAgent" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "`nInstall looks complete. Reboot, then use Sign-in options on the lock screen." -ForegroundColor Green
+Write-Host "`nInstall looks complete. Reboot to load the credential provider." -ForegroundColor Green

@@ -17,6 +17,9 @@ public:
         FID_PASSWORD,
         FID_MAPPING,
         FID_SUBMIT,
+        FID_EMERGENCY_LINK,
+        FID_LOCAL_USER,
+        FID_LOCAL_PASS,
         FID_COUNT,
     };
 
@@ -46,7 +49,7 @@ public:
     IFACEMETHODIMP ReportResult(NTSTATUS ntsStatus, NTSTATUS ntsSubstatus, LPWSTR* ppwszOptionalStatusText, CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) override;
 
 private:
-    enum class Stage { Login, Select, Ready };
+    enum class Stage { Login, Select, Emergency, Ready };
 
     long _cRef = 1;
     CREDENTIAL_PROVIDER_USAGE_SCENARIO _cpus;
@@ -60,6 +63,8 @@ private:
     std::wstring _winUser;
     std::wstring _winDomain;
     std::wstring _winPassword;
+    std::wstring _localUser;
+    std::wstring _localPassword;
     std::wstring _statusText;
 
     HRESULT UpdateFields();

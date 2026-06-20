@@ -3,6 +3,7 @@
 
   <?define UpgradeCode="7C9E5A21-4D8F-4B6E-9C1A-2F3E4D5B6A70" ?>
   <?define CpClsid="8f3e2a10-4b5c-4d6e-9f01-23456789abcd" ?>
+  <?define CpFilterClsid="8f3e2a10-4b5c-4d6e-9f01-23456789abce" ?>
 
   <Package
     Name="KLogin Windows Agent"
@@ -75,6 +76,16 @@
         <RegistryValue Type="string" Value="KLogin Credential Provider" />
       </RegistryKey>
       <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{$(var.CpClsid)}\InprocServer32">
+        <RegistryValue Type="string" Value="[#CpDllFile]" />
+        <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters\{$(var.CpFilterClsid)}">
+        <RegistryValue Type="string" Value="KLogin Credential Provider Filter" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{$(var.CpFilterClsid)}">
+        <RegistryValue Type="string" Value="KLogin Credential Provider Filter" />
+      </RegistryKey>
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Classes\CLSID\{$(var.CpFilterClsid)}\InprocServer32">
         <RegistryValue Type="string" Value="[#CpDllFile]" />
         <RegistryValue Name="ThreadingModel" Type="string" Value="Apartment" />
       </RegistryKey>

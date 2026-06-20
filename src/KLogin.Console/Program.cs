@@ -1,9 +1,9 @@
-using System.Text.Json;
+using KLogin.Shared;
 using KLogin.Shared.Models;
 using KLogin.Shared.Pipe;
 using KLogin.Shared.Services;
 
-const string defaultBackend = "http://localhost:8000";
+const string defaultBackend = BackendDefaults.LocalUrl;
 const string defaultPipe = "klogin-agent";
 
 Console.WriteLine("KLogin Windows Agent Console");

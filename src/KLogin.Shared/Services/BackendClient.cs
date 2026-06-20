@@ -14,18 +14,20 @@ public sealed class BackendClient : IDisposable
     };
 
     private readonly HttpClient _http;
+    private readonly string _apiPrefix;
 
     public BackendClient(string baseUrl, HttpMessageHandler? handler = null)
     {
         _http = handler is null ? new HttpClient() : new HttpClient(handler);
-        _http.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+        _http.BaseAddress = NormalizeBaseAddress(baseUrl);
         _http.Timeout = TimeSpan.FromSeconds(30);
+        _apiPrefix = BaseUrlIncludesApiPath(baseUrl) ? string.Empty : "api/";
     }
 
     public async Task<AgentLoginResponse> AgentLoginAsync(string username, string password, CancellationToken ct = default)
     {
         using var response = await _http.PostAsJsonAsync(
-            "api/auth/agent-login",
+            $"{_apiPrefix}auth/agent-login",
             new LoginRequest(username, password),
             JsonOptions,
             ct);
@@ -46,7 +48,7 @@ public sealed class BackendClient : IDisposable
 
     public async Task<AgentSelectResponse> AgentSelectAsync(string accessToken, int mappingId, CancellationToken ct = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/agent-select")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_apiPrefix}auth/agent-select")
         {
             Content = JsonContent.Create(new AgentSelectRequest(mappingId), options: JsonOptions),
         };
@@ -67,11 +69,23 @@ public sealed class BackendClient : IDisposable
 
     public async Task<bool> HealthAsync(CancellationToken ct = default)
     {
-        using var response = await _http.GetAsync("api/health", ct);
+        using var response = await _http.GetAsync($"{_apiPrefix}health", ct);
         return response.IsSuccessStatusCode;
     }
 
     public void Dispose() => _http.Dispose();
+
+    private static Uri NormalizeBaseAddress(string baseUrl)
+    {
+        var trimmed = baseUrl.TrimEnd('/');
+        return new Uri(trimmed + "/", UriKind.Absolute);
+    }
+
+    private static bool BaseUrlIncludesApiPath(string baseUrl)
+    {
+        var trimmed = baseUrl.TrimEnd('/');
+        return trimmed.EndsWith("/api", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static AgentMappingOption MapOption(AgentMappingPayload payload) =>
         new(payload.MappingId, payload.WindowsUsername, payload.DisplayName, payload.Domain, payload.Label);

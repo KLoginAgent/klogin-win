@@ -6,7 +6,7 @@
     <InstallerPlatform>x64</InstallerPlatform>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0.0</ProductVersion>
-    <BackendUrl Condition="'$(BackendUrl)' == ''">http://localhost:8000</BackendUrl>
+    <BackendUrl Condition="'$(BackendUrl)' == ''">https://klogin.kumpe.app/api</BackendUrl>
     <DefineConstants>
       AgentPublishDir=$(AgentPublishDir);
       CredentialProviderDll=$(CredentialProviderDll);

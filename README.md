@@ -52,7 +52,7 @@ Edit `src/KLogin.Agent/appsettings.json`:
 ```json
 {
   "KLogin": {
-    "BackendBaseUrl": "http://your-server:8000",
+    "BackendBaseUrl": "https://klogin.kumpe.app/api",
     "PipeName": "klogin-agent"
   }
 }
@@ -97,7 +97,7 @@ Workflow: `.github/workflows/publish-windows-agent.yml`
 | Release published | `latest`, `stable`, release tag (e.g. `v1.0.0`, `1.0.0`) |
 | Manual dispatch | `stable`, `stage`, or `dev` (+ branch selection) |
 
-Set repository variable `KLOGIN_BACKEND_URL` as the default pre-fill for the installer's server URL prompt.
+Set repository variable `KLOGIN_BACKEND_URL` (default: `https://klogin.kumpe.app/api`) to override the MSI server URL pre-fill.
 
 ## Build MSI and Setup EXE (Windows)
 
@@ -105,7 +105,7 @@ Requirements: Windows 10/11, .NET 8 SDK, Visual Studio 2022 (C++ workload), WiX 
 
 ```powershell
 cd klogin-win
-./installer/build.ps1 -Configuration Release -BackendUrl "http://your-server:8000"
+./installer/build.ps1 -Configuration Release -BackendUrl "https://klogin.kumpe.app/api"
 ```
 
 Artifacts:
@@ -114,8 +114,8 @@ Artifacts:
 - `installer/bin/Release/en-US/KLoginAgentSetup.exe` — bootstrapper EXE wrapping the MSI
 
 The MSI:
-- Prompts for **KLogin backend server URL** during setup (pre-filled with build default)
-- Installs the agent to `C:\Program Files\KLogin\Agent`
+- Prompts for **KLogin backend server URL** during setup (default `https://klogin.kumpe.app/api`)
+- Installs the agent to `C:\Program Files\KLogin\Agent` (includes `verify-install.ps1`)
 - Registers and starts the `KLoginAgent` Windows service
 - Copies `KLoginCredentialProvider.dll` to `System32` and registers the credential provider
 - Writes the chosen URL to `appsettings.json` → `KLogin:BackendBaseUrl`
@@ -123,7 +123,7 @@ The MSI:
 Silent install with a explicit URL:
 
 ```powershell
-msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.example.com:8000" /qn
+msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.kumpe.app/api" /qn
 ```
 
 ## Install (manual alternative)
@@ -135,21 +135,28 @@ msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.example.com:8000" 
 
 ### Lock screen not showing KLogin?
 
-The credential provider **adds** a KLogin tile; it does **not** remove the default Windows password/PIN screen.
+The credential provider filter hides Windows password/PIN/Hello providers so **KLogin is the primary lock screen**. Emergency local admin access is available via a command link on the KLogin tile.
 
 1. **Reboot** after install (sign-out alone often is not enough — winlogon loads providers at boot).
-2. On the lock screen, click **Sign-in options** (bottom-left) and pick **KLogin** / **Sign in with KLogin**.
-3. Run `.\installer\verify-install.ps1` as Administrator — confirms service, DLL in `System32`, and registry keys.
-4. Confirm **KLoginAgent** service is **Running** (`services.msc`).
-5. Check **Event Viewer → Windows Logs → Application** for credential-provider load errors after reboot.
-6. Azure AD / Entra-joined PCs may hide third-party credential providers via policy.
+2. Run `.\installer\verify-install.ps1` as Administrator — confirms service, DLL, provider, and **filter** registry keys.
+3. Confirm **KLoginAgent** service is **Running** (`services.msc`).
+4. Check **Event Viewer → Windows Logs → Application** for credential-provider load errors after reboot.
+5. Azure AD / Entra-joined PCs may hide third-party credential providers via policy.
 
-Expected registry (CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}`):
+**Emergency recovery** (restore Windows password sign-in):
 
-- `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Providers\{...}`
+```powershell
+New-ItemProperty -Path HKLM:\SOFTWARE\KLoginAgent -Name ShowAllCredentialProviders -Value 1 -PropertyType DWord -Force
+# Reboot
+```
+
+Expected registry:
+
+- Provider CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}`
+- Filter CLSID `{8f3e2a10-4b5c-4d6e-9f01-23456789abce}`
 - `HKLM\SOFTWARE\Classes\CLSID\{...}\InprocServer32` → `C:\Windows\System32\KLoginCredentialProvider.dll`
 
-If KLogin appears but login fails, verify the backend URL (`HKLM\SOFTWARE\KLoginAgent\BackendBaseUrl`) reaches your server, e.g. `https://klogin.kumpe.app` (no `:8080` — API is on the same host via Caddy).
+If KLogin appears but login fails, verify the backend URL (`HKLM\SOFTWARE\KLoginAgent\BackendBaseUrl`) is `https://klogin.kumpe.app/api`.
 
 ## Pipe protocol
 

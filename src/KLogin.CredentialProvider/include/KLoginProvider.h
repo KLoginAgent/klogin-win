@@ -5,7 +5,7 @@
 
 class KLoginCredential;
 
-class KLoginProvider : public ICredentialProvider {
+class KLoginProvider : public ICredentialProvider2 {
 public:
     KLoginProvider();
     virtual ~KLoginProvider();
@@ -22,6 +22,7 @@ public:
     IFACEMETHODIMP GetFieldDescriptorAt(DWORD dwIndex, CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR** ppcpfd) override;
     IFACEMETHODIMP GetCredentialCount(DWORD* pdwCount, DWORD* pdwDefault, BOOL* pbAutoLogonWithDefault) override;
     IFACEMETHODIMP GetCredentialAt(DWORD dwIndex, ICredentialProviderCredential** ppcpc) override;
+    IFACEMETHODIMP GetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO* cpus, DWORD* pdwFlags) override;
 
 private:
     long _cRef = 1;

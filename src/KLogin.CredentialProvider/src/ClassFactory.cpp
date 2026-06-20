@@ -1,10 +1,12 @@
 #include "ClassFactory.h"
 
+#include "KLoginFilter.h"
 #include "KLoginProvider.h"
+#include "guid.h"
 
 #include <new>
 
-ClassFactory::ClassFactory() = default;
+ClassFactory::ClassFactory(REFCLSID clsid) : _clsid(clsid) {}
 ClassFactory::~ClassFactory() = default;
 
 IFACEMETHODIMP ClassFactory::QueryInterface(REFIID riid, void** ppv) {
@@ -38,14 +40,27 @@ IFACEMETHODIMP ClassFactory::CreateInstance(IUnknown* pUnkOuter, REFIID riid, vo
         return CLASS_E_NOAGGREGATION;
     }
 
-    auto* provider = new (std::nothrow) KLoginProvider();
-    if (!provider) {
-        return E_OUTOFMEMORY;
+    if (IsEqualCLSID(_clsid, CLSID_KLoginCredentialProvider)) {
+        auto* provider = new (std::nothrow) KLoginProvider();
+        if (!provider) {
+            return E_OUTOFMEMORY;
+        }
+        const HRESULT hr = provider->QueryInterface(riid, ppvObject);
+        provider->Release();
+        return hr;
     }
 
-    const HRESULT hr = provider->QueryInterface(riid, ppvObject);
-    provider->Release();
-    return hr;
+    if (IsEqualCLSID(_clsid, CLSID_KLoginCredentialProviderFilter)) {
+        auto* filter = new (std::nothrow) KLoginFilter();
+        if (!filter) {
+            return E_OUTOFMEMORY;
+        }
+        const HRESULT hr = filter->QueryInterface(riid, ppvObject);
+        filter->Release();
+        return hr;
+    }
+
+    return CLASS_E_CLASSNOTAVAILABLE;
 }
 
 IFACEMETHODIMP ClassFactory::LockServer(BOOL) { return S_OK; }

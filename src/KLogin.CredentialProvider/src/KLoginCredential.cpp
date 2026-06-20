@@ -16,6 +16,7 @@ KLoginCredential::~KLoginCredential() {
     }
     KLogin::SecureZeroWide(_password);
     KLogin::SecureZeroWide(_winPassword);
+    KLogin::SecureZeroWide(_localPassword);
 }
 
 IFACEMETHODIMP KLoginCredential::QueryInterface(REFIID riid, void** ppv) {
@@ -84,7 +85,16 @@ IFACEMETHODIMP KLoginCredential::GetFieldState(DWORD dwFieldID, CREDENTIAL_PROVI
             *pcpfs = _stage == Stage::Select ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
             break;
         case FID_SUBMIT:
-            *pcpfs = CPFS_DISPLAY_IN_BOTH;
+            *pcpfs = (_stage == Stage::Login || _stage == Stage::Select || _stage == Stage::Emergency)
+                ? CPFS_DISPLAY_IN_BOTH
+                : CPFS_HIDDEN;
+            break;
+        case FID_EMERGENCY_LINK:
+            *pcpfs = _stage == Stage::Login ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
+            break;
+        case FID_LOCAL_USER:
+        case FID_LOCAL_PASS:
+            *pcpfs = _stage == Stage::Emergency ? CPFS_DISPLAY_IN_BOTH : CPFS_HIDDEN;
             break;
         default:
             return E_INVALIDARG;
@@ -98,9 +108,17 @@ IFACEMETHODIMP KLoginCredential::GetStringValue(DWORD dwFieldID, LPWSTR* ppwsz) 
     }
     switch (dwFieldID) {
         case FID_LABEL:
-            return SHStrDupW(_stage == Stage::Select ? L"Choose Windows account" : L"Sign in with KLogin", ppwsz);
+            if (_stage == Stage::Emergency) {
+                return SHStrDupW(L"Emergency local sign-in", ppwsz);
+            }
+            if (_stage == Stage::Select) {
+                return SHStrDupW(L"Choose Windows account", ppwsz);
+            }
+            return SHStrDupW(L"Sign in with KLogin", ppwsz);
         case FID_USERNAME:
             return SHStrDupW(_username.c_str(), ppwsz);
+        case FID_LOCAL_USER:
+            return SHStrDupW(_localUser.c_str(), ppwsz);
         default:
             return E_NOTIMPL;
     }
@@ -113,13 +131,24 @@ IFACEMETHODIMP KLoginCredential::GetComboBoxValueCount(DWORD dwFieldID, DWORD* p
     if (dwFieldID != FID_MAPPING || !pcItems || !pdwSelectedItem) {
         return E_INVALIDARG;
     }
-    *pcItems = static_cast<DWORD>(_options.size());
-    *pdwSelectedItem = _selectedMapping;
+    // Winlogon rejects combobox fields with zero items during enumeration.
+    const DWORD count = _options.empty() ? 1 : static_cast<DWORD>(_options.size());
+    *pcItems = count;
+    *pdwSelectedItem = _selectedMapping < count ? _selectedMapping : 0;
     return S_OK;
 }
 
 IFACEMETHODIMP KLoginCredential::GetComboBoxValueAt(DWORD dwFieldID, DWORD dwItem, LPWSTR* ppwszItem) {
-    if (dwFieldID != FID_MAPPING || dwItem >= _options.size() || !ppwszItem) {
+    if (dwFieldID != FID_MAPPING || !ppwszItem) {
+        return E_INVALIDARG;
+    }
+    if (_options.empty()) {
+        if (dwItem != 0) {
+            return E_INVALIDARG;
+        }
+        return SHStrDupW(L"", ppwszItem);
+    }
+    if (dwItem >= _options.size()) {
         return E_INVALIDARG;
     }
     const auto& option = _options[dwItem];
@@ -131,7 +160,13 @@ IFACEMETHODIMP KLoginCredential::GetSubmitButtonValue(DWORD dwFieldID, DWORD* pd
     if (dwFieldID != FID_SUBMIT || !pdwAdjacentTo) {
         return E_INVALIDARG;
     }
-    *pdwAdjacentTo = _stage == Stage::Select ? FID_MAPPING : FID_PASSWORD;
+    if (_stage == Stage::Emergency) {
+        *pdwAdjacentTo = FID_LOCAL_PASS;
+    } else if (_stage == Stage::Select) {
+        *pdwAdjacentTo = FID_MAPPING;
+    } else {
+        *pdwAdjacentTo = FID_PASSWORD;
+    }
     return S_OK;
 }
 
@@ -147,6 +182,14 @@ IFACEMETHODIMP KLoginCredential::SetStringValue(DWORD dwFieldID, LPCWSTR pwz) {
         _password = pwz;
         return S_OK;
     }
+    if (dwFieldID == FID_LOCAL_USER) {
+        _localUser = pwz;
+        return S_OK;
+    }
+    if (dwFieldID == FID_LOCAL_PASS) {
+        _localPassword = pwz;
+        return S_OK;
+    }
     return E_INVALIDARG;
 }
 
@@ -160,7 +203,13 @@ IFACEMETHODIMP KLoginCredential::SetComboBoxSelectedValue(DWORD dwFieldID, DWORD
     return S_OK;
 }
 
-IFACEMETHODIMP KLoginCredential::CommandLinkClicked(DWORD) { return E_NOTIMPL; }
+IFACEMETHODIMP KLoginCredential::CommandLinkClicked(DWORD dwFieldID) {
+    if (dwFieldID == FID_EMERGENCY_LINK) {
+        _stage = Stage::Emergency;
+        return UpdateFields();
+    }
+    return E_NOTIMPL;
+}
 
 HRESULT KLoginCredential::UpdateFields() {
     if (!_pEvents) {
@@ -226,7 +275,22 @@ IFACEMETHODIMP KLoginCredential::GetSerialization(
     }
 
     *pcpgsr = CPGSR_NO_CREDENTIAL_NOT_FINISHED;
-    if (_stage == Stage::Login) {
+
+    if (_stage == Stage::Emergency) {
+        if (_localUser.empty() || _localPassword.empty()) {
+            if (ppwszOptionalStatusText) {
+                SHStrDupW(L"Enter local username and password", ppwszOptionalStatusText);
+            }
+            if (pcpsiOptionalStatusIcon) {
+                *pcpsiOptionalStatusIcon = CPSI_WARNING;
+            }
+            return S_OK;
+        }
+        _winUser = _localUser;
+        _winDomain = L".";
+        _winPassword = _localPassword;
+        _stage = Stage::Ready;
+    } else if (_stage == Stage::Login) {
         if (FAILED(PerformLogin())) {
             if (ppwszOptionalStatusText) {
                 SHStrDupW(_statusText.c_str(), ppwszOptionalStatusText);

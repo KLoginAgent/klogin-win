@@ -24,7 +24,7 @@ Build **only on Windows**. Cannot compile CP or service host on macOS/Linux.
 ```powershell
 # Full MSI + Setup EXE
 ./installer/build.ps1 -Configuration Release `
-  -BackendUrl "http://your-server:8000" `
+  -BackendUrl "https://klogin.kumpe.app/api" `
   -ProductVersion "1.0.0.0" `
   -VersionTags stable,latest
 
@@ -48,12 +48,12 @@ Workflow: **`.github/workflows/publish-windows-agent.yml`** (lives in this repo,
 | Release | `latest`, `stable`, release tag |
 | Manual | `stable`, `stage`, or `dev` + branch |
 
-Set repo variable `KLOGIN_BACKEND_URL` (default value pre-filled in the installer's server URL prompt).
+Set repo variable `KLOGIN_BACKEND_URL` (default: `https://klogin.kumpe.app/api`) to override the MSI server URL pre-fill.
 
 ## Installer behavior
 
 - **MSI / Setup EXE:** custom dialog prompts for backend server URL (default from build).
-- **Silent MSI:** `msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://host:8000" /qn`
+- **Silent MSI:** `msiexec /i KLoginAgent.msi KLOGIN_BACKEND_URL="https://klogin.kumpe.app/api" /qn`
 - **`install.ps1`:** prompts interactively if `-BackendUrl` is omitted.
 
 ## Login flow (implementation map)

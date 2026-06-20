@@ -13,6 +13,9 @@ static const CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR s_fields[] = {
     { KLoginCredential::FID_PASSWORD, CPFT_PASSWORD_TEXT, L"KLogin password" },
     { KLoginCredential::FID_MAPPING, CPFT_COMBOBOX, L"Windows account" },
     { KLoginCredential::FID_SUBMIT, CPFT_SUBMIT_BUTTON, L"Sign in" },
+    { KLoginCredential::FID_EMERGENCY_LINK, CPFT_COMMAND_LINK, L"Emergency local administrator sign-in" },
+    { KLoginCredential::FID_LOCAL_USER, CPFT_EDIT_TEXT, L"Local username" },
+    { KLoginCredential::FID_LOCAL_PASS, CPFT_PASSWORD_TEXT, L"Local password" },
 };
 
 static const DWORD s_fieldCount = KLoginCredential::FID_COUNT;
@@ -28,6 +31,7 @@ KLoginProvider::~KLoginProvider() {
 IFACEMETHODIMP KLoginProvider::QueryInterface(REFIID riid, void** ppv) {
     static const QITAB qit[] = {
         QITABENT(KLoginProvider, ICredentialProvider),
+        QITABENT(KLoginProvider, ICredentialProvider2),
         { 0 },
     };
     return QISearch(this, qit, riid, ppv);
@@ -110,5 +114,14 @@ IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProvide
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;
+    return S_OK;
+}
+
+IFACEMETHODIMP KLoginProvider::GetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENARIO* cpus, DWORD* pdwFlags) {
+    if (!cpus || !pdwFlags) {
+        return E_INVALIDARG;
+    }
+    *cpus = _cpus;
+    *pdwFlags = 0;
     return S_OK;
 }

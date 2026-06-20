@@ -2,7 +2,7 @@
 param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
-    [string]$BackendUrl = 'http://localhost:8000',
+    [string]$BackendUrl = 'https://klogin.kumpe.app/api',
     [string]$ProductVersion = '0.1.0.0',
     [string[]]$VersionTags = @('dev'),
     [switch]$SkipTests
@@ -57,6 +57,8 @@ if (Test-Path $AppSettings) {
     $json.KLogin.BackendBaseUrl = $BackendUrl
     $json | ConvertTo-Json -Depth 5 | Set-Content $AppSettings
 }
+
+Copy-Item (Join-Path $InstallerDir 'verify-install.ps1') (Join-Path $AgentPublish 'verify-install.ps1') -Force
 
 Write-Host "==> Build Credential Provider ($Configuration|x64)"
 $Msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `

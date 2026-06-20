@@ -4,7 +4,7 @@
 
 class ClassFactory : public IClassFactory {
 public:
-    ClassFactory();
+    explicit ClassFactory(REFCLSID clsid);
     virtual ~ClassFactory();
 
     IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override;
@@ -15,4 +15,5 @@ public:
 
 private:
     long _cRef = 1;
+    CLSID _clsid{};
 };

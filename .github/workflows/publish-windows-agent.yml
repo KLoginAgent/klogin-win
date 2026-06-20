@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BACKEND_URL: ${{ vars.KLOGIN_BACKEND_URL || 'http://localhost:8000' }}
+  BACKEND_URL: ${{ vars.KLOGIN_BACKEND_URL || 'https://klogin.kumpe.app/api' }}
 
 jobs:
   build-windows:
@@ -126,6 +126,24 @@ jobs:
             -ProductVersion "${{ steps.version.outputs.product_version }}" `
             -VersionTags $tags `
             -SkipTests
+
+      - name: Verify installer payload
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem dist/installers/KLoginAgent-*.msi | Select-Object -First 1
+          if (-not $msi) { throw 'No MSI produced in dist/installers' }
+          $required = @(
+            'dist/agent/verify-install.ps1',
+            'dist/agent/KLogin.Agent.exe'
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing build artifact: $path" }
+          }
+          $wxs = Get-Content installer/Package.wxs -Raw
+          if ($wxs -notmatch 'Credential Provider Filters') {
+            throw 'Package.wxs is missing credential provider filter registration'
+          }
+          Write-Host "Verified MSI: $($msi.Name)"
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

@@ -27,11 +27,12 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void** ppv) {
     if (!ppv) {
         return E_POINTER;
     }
-    if (!IsEqualCLSID(rclsid, CLSID_KLoginCredentialProvider)) {
+    if (!IsEqualCLSID(rclsid, CLSID_KLoginCredentialProvider) &&
+        !IsEqualCLSID(rclsid, CLSID_KLoginCredentialProviderFilter)) {
         return CLASS_E_CLASSNOTAVAILABLE;
     }
 
-    auto* factory = new (std::nothrow) ClassFactory();
+    auto* factory = new (std::nothrow) ClassFactory(rclsid);
     if (!factory) {
         return E_OUTOFMEMORY;
     }

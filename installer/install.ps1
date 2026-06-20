@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
-    $defaultUrl = "http://localhost:8000"
+    $defaultUrl = "https://klogin.kumpe.app/api"
     $BackendUrl = Read-Host "Enter KLogin server URL [$defaultUrl]"
     if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
         $BackendUrl = $defaultUrl
@@ -16,6 +16,7 @@ if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
 }
 
 $CpClsid = "{8f3e2a10-4b5c-4d6e-9f01-23456789abcd}"
+$CpFilterClsid = "{8f3e2a10-4b5c-4d6e-9f01-23456789abce}"
 $SystemDll = "C:\Windows\System32\KLoginCredentialProvider.dll"
 
 Write-Host "Installing KLogin Agent service..."
@@ -50,6 +51,18 @@ New-Item -Path "$clsidReg\InprocServer32" -Force | Out-Null
 Set-ItemProperty -Path "$clsidReg\InprocServer32" -Name "(default)" -Value $SystemDll
 Set-ItemProperty -Path "$clsidReg\InprocServer32" -Name "ThreadingModel" -Value "Apartment"
 
+Write-Host "Installing Credential Provider Filter..."
+$filterReg = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Authentication\Credential Provider Filters\$CpFilterClsid"
+New-Item -Path $filterReg -Force | Out-Null
+Set-ItemProperty -Path $filterReg -Name "(default)" -Value "KLogin Credential Provider Filter"
+
+$filterClsidReg = "HKLM:\SOFTWARE\Classes\CLSID\$CpFilterClsid"
+New-Item -Path $filterClsidReg -Force | Out-Null
+Set-ItemProperty -Path $filterClsidReg -Name "(default)" -Value "KLogin Credential Provider Filter"
+New-Item -Path "$filterClsidReg\InprocServer32" -Force | Out-Null
+Set-ItemProperty -Path "$filterClsidReg\InprocServer32" -Name "(default)" -Value $SystemDll
+Set-ItemProperty -Path "$filterClsidReg\InprocServer32" -Name "ThreadingModel" -Value "Apartment"
+
 Write-Host "KLogin installed."
 Write-Host ""
 Write-Host "IMPORTANT — lock screen behavior:"
@@ -57,4 +70,4 @@ Write-Host "  • KLogin adds a sign-in option; it does NOT remove the default W
 Write-Host "  • REBOOT this PC (sign-out alone is often not enough for the credential provider to load)."
 Write-Host "  • On the lock screen, click 'Sign-in options' and choose the KLogin tile."
 Write-Host ""
-Write-Host "Run .\verify-install.ps1 to confirm the service, DLL, and registry keys."
+Write-Host "Run C:\Program Files\KLogin\Agent\verify-install.ps1 to confirm the service, DLL, and registry keys."
