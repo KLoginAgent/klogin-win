@@ -85,6 +85,10 @@ static void ApplyCredentials(const std::wstring& json, LoginPipeResult& result) 
     result.displayName = JsonGetString(credentials, L"displayName");
     result.domain = JsonGetString(credentials, L"domain");
     result.windowsPassword = JsonGetString(credentials, L"windowsPassword");
+    if (result.windowsUsername.empty() || result.windowsPassword.empty()) {
+        result.status = LoginPipeStatus::Failed;
+        result.error = L"Agent returned incomplete Windows credentials";
+    }
 }
 
 LoginPipeResult SendLoginRequest(const std::wstring& username, const std::wstring& password) {
@@ -109,6 +113,9 @@ LoginPipeResult SendLoginRequest(const std::wstring& username, const std::wstrin
     if (status == L"success") {
         result.status = LoginPipeStatus::Success;
         ApplyCredentials(data, result);
+        if (result.status == LoginPipeStatus::Failed) {
+            return result;
+        }
         return result;
     }
 
@@ -153,6 +160,9 @@ LoginPipeResult SendSelectRequest(const std::wstring& token, int mappingId) {
     const std::wstring data = ExtractObject(json, L"data");
     result.status = LoginPipeStatus::Success;
     ApplyCredentials(data, result);
+    if (result.status == LoginPipeStatus::Failed) {
+        return result;
+    }
     return result;
 }
 

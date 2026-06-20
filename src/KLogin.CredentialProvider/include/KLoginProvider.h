@@ -34,4 +34,5 @@ private:
     KLoginCredential* _pCredential = nullptr;
     ICredentialProviderUserArray* _pUserArray = nullptr;
     std::wstring _userSid;
+    std::wstring _targetAccountName;
 };

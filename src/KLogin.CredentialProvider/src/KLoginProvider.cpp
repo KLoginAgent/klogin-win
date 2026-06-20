@@ -62,10 +62,12 @@ IFACEMETHODIMP_(ULONG) KLoginProvider::Release() {
 
 void KLoginProvider::SyncTargetUserSid() {
     _userSid.clear();
+    _targetAccountName.clear();
     if (!_pUserArray) {
         KLogin::LogCp(L"SetUserArray: no user array");
         if (_pCredential) {
             _pCredential->SetTargetUserSid(_userSid);
+            _pCredential->SetTargetAccountName(_targetAccountName);
         }
         return;
     }
@@ -75,6 +77,7 @@ void KLoginProvider::SyncTargetUserSid() {
         KLogin::LogCp(L"SetUserArray: GetCount failed");
         if (_pCredential) {
             _pCredential->SetTargetUserSid(_userSid);
+            _pCredential->SetTargetAccountName(_targetAccountName);
         }
         return;
     }
@@ -86,6 +89,7 @@ void KLoginProvider::SyncTargetUserSid() {
     if (count == 0) {
         if (_pCredential) {
             _pCredential->SetTargetUserSid(_userSid);
+            _pCredential->SetTargetAccountName(_targetAccountName);
         }
         return;
     }
@@ -95,6 +99,7 @@ void KLoginProvider::SyncTargetUserSid() {
         KLogin::LogCp(L"SetUserArray: GetAt(0) failed");
         if (_pCredential) {
             _pCredential->SetTargetUserSid(_userSid);
+            _pCredential->SetTargetAccountName(_targetAccountName);
         }
         return;
     }
@@ -107,10 +112,20 @@ void KLoginProvider::SyncTargetUserSid() {
     } else {
         KLogin::LogCp(L"SetUserArray: GetSid failed");
     }
+
+    LPWSTR accountName = nullptr;
+    constexpr DWORD kAccountNameField = 1;
+    if (SUCCEEDED(pUser->GetStringValue(kAccountNameField, &accountName)) && accountName) {
+        _targetAccountName = accountName;
+        CoTaskMemFree(accountName);
+        KLogin::LogCp(L"SetUserArray: cached target account name");
+    }
+
     pUser->Release();
 
     if (_pCredential) {
         _pCredential->SetTargetUserSid(_userSid);
+        _pCredential->SetTargetAccountName(_targetAccountName);
     }
 }
 
@@ -143,6 +158,7 @@ IFACEMETHODIMP KLoginProvider::SetUsageScenario(CREDENTIAL_PROVIDER_USAGE_SCENAR
             return E_OUTOFMEMORY;
         }
         _pCredential->SetTargetUserSid(_userSid);
+        _pCredential->SetTargetAccountName(_targetAccountName);
     }
     return S_OK;
 }
@@ -209,6 +225,7 @@ IFACEMETHODIMP KLoginProvider::GetCredentialAt(DWORD dwIndex, ICredentialProvide
             return E_OUTOFMEMORY;
         }
         _pCredential->SetTargetUserSid(_userSid);
+        _pCredential->SetTargetAccountName(_targetAccountName);
     }
     _pCredential->AddRef();
     *ppcpc = _pCredential;

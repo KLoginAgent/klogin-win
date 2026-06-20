@@ -11,6 +11,7 @@ std::string WideToUtf8(const std::wstring& value);
 std::wstring JsonGetString(const std::wstring& json, const std::wstring& key);
 int JsonGetInt(const std::wstring& json, const std::wstring& key);
 bool JsonGetBool(const std::wstring& json, const std::wstring& key);
+std::wstring NormalizeAccountName(const std::wstring& value);
 
 HRESULT PackPasswordLogon(
     const std::wstring& domain,

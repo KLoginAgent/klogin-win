@@ -133,6 +133,18 @@ public sealed class AgentPipeServer
         }
 
         var result = await _orchestrator.LoginAsync(request.Username, request.Password, ct);
+        if (result.Status == LoginStatus.Success)
+        {
+            _logger.LogInformation(
+                "KLogin pipe login succeeded for {KLoginUser} -> {WindowsUser}\\{Domain}",
+                request.Username,
+                result.Credentials?.WindowsUsername,
+                result.Credentials?.Domain);
+        }
+        else if (result.Status == LoginStatus.Failed)
+        {
+            _logger.LogWarning("KLogin pipe login failed for {KLoginUser}: {Error}", request.Username, result.Error);
+        }
         return ToPipeResponse(result);
     }
 

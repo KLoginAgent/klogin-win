@@ -3,6 +3,7 @@
 #include <credentialprovider.h>
 #include <ntsecapi.h>
 #include <strsafe.h>
+#include <cwctype>
 #include <vector>
 
 #pragma comment(lib, "secur32.lib")
@@ -82,11 +83,61 @@ std::wstring JsonGetString(const std::wstring& json, const std::wstring& key) {
     }
     const size_t colon = json.find(L':', keyPos);
     const size_t startQuote = json.find(L'"', colon);
-    const size_t endQuote = json.find(L'"', startQuote + 1);
-    if (colon == std::wstring::npos || startQuote == std::wstring::npos || endQuote == std::wstring::npos) {
+    if (colon == std::wstring::npos || startQuote == std::wstring::npos) {
         return L"";
     }
-    return json.substr(startQuote + 1, endQuote - startQuote - 1);
+
+    std::wstring result;
+    for (size_t i = startQuote + 1; i < json.size(); ++i) {
+        const wchar_t ch = json[i];
+        if (ch == L'"') {
+            break;
+        }
+        if (ch == L'\\' && i + 1 < json.size()) {
+            const wchar_t next = json[++i];
+            switch (next) {
+                case L'"':
+                case L'\\':
+                case L'/':
+                    result += next;
+                    break;
+                case L'b':
+                    result += L'\b';
+                    break;
+                case L'f':
+                    result += L'\f';
+                    break;
+                case L'n':
+                    result += L'\n';
+                    break;
+                case L'r':
+                    result += L'\r';
+                    break;
+                case L't':
+                    result += L'\t';
+                    break;
+                case L'u':
+                    if (i + 4 < json.size()) {
+                        wchar_t hex[5] = {
+                            json[i + 1],
+                            json[i + 2],
+                            json[i + 3],
+                            json[i + 4],
+                            L'\0',
+                        };
+                        result += static_cast<wchar_t>(wcstol(hex, nullptr, 16));
+                        i += 4;
+                    }
+                    break;
+                default:
+                    result += next;
+                    break;
+            }
+            continue;
+        }
+        result += ch;
+    }
+    return result;
 }
 
 int JsonGetInt(const std::wstring& json, const std::wstring& key) {
@@ -112,6 +163,18 @@ bool JsonGetBool(const std::wstring& json, const std::wstring& key) {
     }
     const size_t colon = json.find(L':', keyPos);
     return colon != std::wstring::npos && json.find(L"true", colon) != std::wstring::npos;
+}
+
+std::wstring NormalizeAccountName(const std::wstring& value) {
+    if (value.empty()) {
+        return L"";
+    }
+    const size_t slash = value.find_last_of(L"\\/");
+    std::wstring name = slash == std::wstring::npos ? value : value.substr(slash + 1);
+    for (auto& ch : name) {
+        ch = static_cast<wchar_t>(towlower(ch));
+    }
+    return name;
 }
 
 void SecureZeroWide(std::wstring& value) {
@@ -151,7 +214,128 @@ static HRESULT RetrieveKerbAuthPackage(ULONG* pulAuthPackage) {
     return FAILED(HRESULT_FROM_NT(status)) ? HRESULT_FROM_NT(status) : S_OK;
 }
 
-HRESULT PackPasswordLogon(
+static HRESULT RetrieveMsv1AuthPackage(ULONG* pulAuthPackage) {
+    HANDLE hLsa = nullptr;
+    NTSTATUS status = LsaConnectUntrusted(&hLsa);
+    if (FAILED(HRESULT_FROM_NT(status))) {
+        return HRESULT_FROM_NT(status);
+    }
+
+    LSA_STRING packageName{};
+    const char msv[] = MSV1_0_PACKAGE_NAME;
+    packageName.Buffer = const_cast<PCHAR>(msv);
+    packageName.Length = static_cast<USHORT>(strlen(msv));
+    packageName.MaximumLength = packageName.Length + 1;
+
+    status = LsaLookupAuthenticationPackage(hLsa, &packageName, pulAuthPackage);
+    LsaDeregisterLogonProcess(hLsa);
+    return FAILED(HRESULT_FROM_NT(status)) ? HRESULT_FROM_NT(status) : S_OK;
+}
+
+static bool IsLocalLogonDomain(const std::wstring& domain) {
+    if (domain.empty() || domain == L".") {
+        return true;
+    }
+
+    wchar_t computerName[MAX_COMPUTERNAME_LENGTH + 1]{};
+    DWORD size = MAX_COMPUTERNAME_LENGTH + 1;
+    if (!GetComputerNameW(computerName, &size)) {
+        return false;
+    }
+    return CompareStringOrdinal(domain.c_str(), -1, computerName, -1, TRUE) == CSTR_EQUAL;
+}
+
+static void FreeUnicodeString(UNICODE_STRING& value) {
+    if (value.Buffer) {
+        HeapFree(GetProcessHeap(), 0, value.Buffer);
+        value.Buffer = nullptr;
+    }
+}
+
+static HRESULT PackThreeStringLogon(
+    DWORD cbHeader,
+    const UNICODE_STRING& domain,
+    const UNICODE_STRING& user,
+    const UNICODE_STRING& password,
+    void (*writeHeader)(BYTE* buffer, const UNICODE_STRING& domain, const UNICODE_STRING& user, const UNICODE_STRING& password),
+    ULONG authPackage,
+    BYTE** rgbSerialized,
+    DWORD* cbSerialized) {
+    const DWORD cbDomain = domain.MaximumLength;
+    const DWORD cbUser = user.MaximumLength;
+    const DWORD cbPassword = password.MaximumLength;
+    const DWORD cbTotal = cbHeader + cbDomain + cbUser + cbPassword;
+
+    auto* buffer = static_cast<BYTE*>(CoTaskMemAlloc(cbTotal));
+    if (!buffer) {
+        return E_OUTOFMEMORY;
+    }
+    ZeroMemory(buffer, cbTotal);
+
+    writeHeader(buffer, domain, user, password);
+
+    BYTE* cursor = buffer + cbHeader;
+    CopyMemory(cursor, domain.Buffer, cbDomain);
+    cursor += cbDomain;
+    CopyMemory(cursor, user.Buffer, cbUser);
+    cursor += cbUser;
+    CopyMemory(cursor, password.Buffer, cbPassword);
+
+    *rgbSerialized = buffer;
+    *cbSerialized = cbTotal;
+    return S_OK;
+}
+
+static void WriteKerbHeader(
+    BYTE* buffer,
+    const UNICODE_STRING& domain,
+    const UNICODE_STRING& user,
+    const UNICODE_STRING& password) {
+    auto* packed = reinterpret_cast<KERB_INTERACTIVE_UNLOCK_LOGON*>(buffer);
+    const DWORD cbHeader = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON);
+
+    BYTE* domainPtr = buffer + cbHeader;
+    packed->Logon.LogonDomainName.Buffer = reinterpret_cast<PWSTR>(domainPtr - buffer);
+    packed->Logon.LogonDomainName.Length = domain.Length;
+    packed->Logon.LogonDomainName.MaximumLength = domain.MaximumLength;
+
+    BYTE* userPtr = domainPtr + domain.MaximumLength;
+    packed->Logon.UserName.Buffer = reinterpret_cast<PWSTR>(userPtr - buffer);
+    packed->Logon.UserName.Length = user.Length;
+    packed->Logon.UserName.MaximumLength = user.MaximumLength;
+
+    BYTE* passwordPtr = userPtr + user.MaximumLength;
+    packed->Logon.Password.Buffer = reinterpret_cast<PWSTR>(passwordPtr - buffer);
+    packed->Logon.Password.Length = password.Length;
+    packed->Logon.Password.MaximumLength = password.MaximumLength;
+}
+
+static void WriteMsv1Header(
+    BYTE* buffer,
+    const UNICODE_STRING& domain,
+    const UNICODE_STRING& user,
+    const UNICODE_STRING& password) {
+    auto* packed = reinterpret_cast<MSV1_0_INTERACTIVE_LOGON*>(buffer);
+    packed->MessageType = MsV1_0InteractiveLogon;
+    const DWORD cbHeader = sizeof(MSV1_0_INTERACTIVE_LOGON);
+
+    BYTE* domainPtr = buffer + cbHeader;
+    packed->LogonDomainName.Buffer = reinterpret_cast<PWSTR>(domainPtr - buffer);
+    packed->LogonDomainName.Length = domain.Length;
+    packed->LogonDomainName.MaximumLength = domain.MaximumLength;
+
+    BYTE* userPtr = domainPtr + domain.MaximumLength;
+    packed->UserName.Buffer = reinterpret_cast<PWSTR>(userPtr - buffer);
+    packed->UserName.Length = user.Length;
+    packed->UserName.MaximumLength = user.MaximumLength;
+
+    BYTE* passwordPtr = userPtr + user.MaximumLength;
+    packed->Password.Buffer = reinterpret_cast<PWSTR>(passwordPtr - buffer);
+    packed->Password.Length = password.Length;
+    packed->Password.MaximumLength = password.MaximumLength;
+}
+
+static HRESULT PackKerbPasswordLogon(
     const std::wstring& domain,
     const std::wstring& username,
     const std::wstring& password,
@@ -159,10 +343,6 @@ HRESULT PackPasswordLogon(
     DWORD* pulAuthPackage,
     BYTE** rgbSerialized,
     DWORD* cbSerialized) {
-    if (!rgbSerialized || !cbSerialized || !pulAuthPackage) {
-        return E_INVALIDARG;
-    }
-
     KERB_INTERACTIVE_UNLOCK_LOGON kiul{};
     kiul.Logon.MessageType = (cpus == CPUS_UNLOCK_WORKSTATION) ? KerbWorkstationUnlockLogon : KerbInteractiveLogon;
 
@@ -179,63 +359,111 @@ HRESULT PackPasswordLogon(
         goto cleanupStrings;
     }
 
-    const DWORD cbHeader = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON);
-    const DWORD cbDomain = kiul.Logon.LogonDomainName.MaximumLength;
-    const DWORD cbUser = kiul.Logon.UserName.MaximumLength;
-    const DWORD cbPassword = kiul.Logon.Password.MaximumLength;
-    const DWORD cbTotal = cbHeader + cbDomain + cbUser + cbPassword;
+    {
+        ULONG authPackage = 0;
+        hr = RetrieveKerbAuthPackage(&authPackage);
+        if (FAILED(hr)) {
+            goto cleanupStrings;
+        }
 
-    auto* buffer = static_cast<BYTE*>(CoTaskMemAlloc(cbTotal));
-    if (!buffer) {
-        hr = E_OUTOFMEMORY;
-        goto cleanupStrings;
+        hr = PackThreeStringLogon(
+            sizeof(KERB_INTERACTIVE_UNLOCK_LOGON),
+            kiul.Logon.LogonDomainName,
+            kiul.Logon.UserName,
+            kiul.Logon.Password,
+            WriteKerbHeader,
+            authPackage,
+            rgbSerialized,
+            cbSerialized);
+        if (SUCCEEDED(hr)) {
+            auto* packed = reinterpret_cast<KERB_INTERACTIVE_UNLOCK_LOGON*>(*rgbSerialized);
+            packed->Logon.MessageType = kiul.Logon.MessageType;
+            *pulAuthPackage = authPackage;
+            LogCp(cpus == CPUS_UNLOCK_WORKSTATION ? L"PackPasswordLogon: Kerberos unlock" : L"PackPasswordLogon: Kerberos interactive");
+        }
     }
-    ZeroMemory(buffer, cbTotal);
-
-    auto* packed = reinterpret_cast<KERB_INTERACTIVE_UNLOCK_LOGON*>(buffer);
-    packed->Logon.MessageType = kiul.Logon.MessageType;
-
-    BYTE* cursor = buffer + cbHeader;
-    CopyMemory(cursor, kiul.Logon.LogonDomainName.Buffer, cbDomain);
-    packed->Logon.LogonDomainName.Buffer = reinterpret_cast<PWSTR>(cursor - buffer);
-    packed->Logon.LogonDomainName.Length = kiul.Logon.LogonDomainName.Length;
-    packed->Logon.LogonDomainName.MaximumLength = kiul.Logon.LogonDomainName.MaximumLength;
-    cursor += cbDomain;
-
-    CopyMemory(cursor, kiul.Logon.UserName.Buffer, cbUser);
-    packed->Logon.UserName.Buffer = reinterpret_cast<PWSTR>(cursor - buffer);
-    packed->Logon.UserName.Length = kiul.Logon.UserName.Length;
-    packed->Logon.UserName.MaximumLength = kiul.Logon.UserName.MaximumLength;
-    cursor += cbUser;
-
-    CopyMemory(cursor, kiul.Logon.Password.Buffer, cbPassword);
-    packed->Logon.Password.Buffer = reinterpret_cast<PWSTR>(cursor - buffer);
-    packed->Logon.Password.Length = kiul.Logon.Password.Length;
-    packed->Logon.Password.MaximumLength = kiul.Logon.Password.MaximumLength;
-
-    ULONG authPackage = 0;
-    hr = RetrieveKerbAuthPackage(&authPackage);
-    if (FAILED(hr)) {
-        CoTaskMemFree(buffer);
-        goto cleanupStrings;
-    }
-
-    *rgbSerialized = buffer;
-    *cbSerialized = cbTotal;
-    *pulAuthPackage = authPackage;
-    hr = S_OK;
 
 cleanupStrings:
-    if (kiul.Logon.LogonDomainName.Buffer) {
-        HeapFree(GetProcessHeap(), 0, kiul.Logon.LogonDomainName.Buffer);
-    }
-    if (kiul.Logon.UserName.Buffer) {
-        HeapFree(GetProcessHeap(), 0, kiul.Logon.UserName.Buffer);
-    }
-    if (kiul.Logon.Password.Buffer) {
-        HeapFree(GetProcessHeap(), 0, kiul.Logon.Password.Buffer);
-    }
+    FreeUnicodeString(kiul.Logon.LogonDomainName);
+    FreeUnicodeString(kiul.Logon.UserName);
+    FreeUnicodeString(kiul.Logon.Password);
     return hr;
+}
+
+static HRESULT PackMsv1PasswordLogon(
+    const std::wstring& domain,
+    const std::wstring& username,
+    const std::wstring& password,
+    DWORD* pulAuthPackage,
+    BYTE** rgbSerialized,
+    DWORD* cbSerialized) {
+    MSV1_0_INTERACTIVE_LOGON logon{};
+    logon.MessageType = MsV1_0InteractiveLogon;
+
+    const std::wstring packDomain = IsLocalLogonDomain(domain) ? L"" : domain;
+    HRESULT hr = CopyUnicodeString(logon.LogonDomainName, packDomain.c_str());
+    if (FAILED(hr)) {
+        return hr;
+    }
+    hr = CopyUnicodeString(logon.UserName, username.c_str());
+    if (FAILED(hr)) {
+        goto cleanupStrings;
+    }
+    hr = CopyUnicodeString(logon.Password, password.c_str());
+    if (FAILED(hr)) {
+        goto cleanupStrings;
+    }
+
+    {
+        ULONG authPackage = 0;
+        hr = RetrieveMsv1AuthPackage(&authPackage);
+        if (FAILED(hr)) {
+            goto cleanupStrings;
+        }
+
+        hr = PackThreeStringLogon(
+            sizeof(MSV1_0_INTERACTIVE_LOGON),
+            logon.LogonDomainName,
+            logon.UserName,
+            logon.Password,
+            WriteMsv1Header,
+            authPackage,
+            rgbSerialized,
+            cbSerialized);
+        if (SUCCEEDED(hr)) {
+            *pulAuthPackage = authPackage;
+            LogCp(L"PackPasswordLogon: MSV1_0 interactive (local account)");
+        }
+    }
+
+cleanupStrings:
+    FreeUnicodeString(logon.LogonDomainName);
+    FreeUnicodeString(logon.UserName);
+    FreeUnicodeString(logon.Password);
+    return hr;
+}
+
+HRESULT PackPasswordLogon(
+    const std::wstring& domain,
+    const std::wstring& username,
+    const std::wstring& password,
+    CREDENTIAL_PROVIDER_USAGE_SCENARIO cpus,
+    DWORD* pulAuthPackage,
+    BYTE** rgbSerialized,
+    DWORD* cbSerialized) {
+    if (!rgbSerialized || !cbSerialized || !pulAuthPackage) {
+        return E_INVALIDARG;
+    }
+    if (username.empty() || password.empty()) {
+        LogCp(L"PackPasswordLogon: missing Windows username or password");
+        return E_INVALIDARG;
+    }
+
+    if (cpus != CPUS_UNLOCK_WORKSTATION && IsLocalLogonDomain(domain)) {
+        return PackMsv1PasswordLogon(domain, username, password, pulAuthPackage, rgbSerialized, cbSerialized);
+    }
+
+    return PackKerbPasswordLogon(domain, username, password, cpus, pulAuthPackage, rgbSerialized, cbSerialized);
 }
 
 HBITMAP CreateTileBitmap() {

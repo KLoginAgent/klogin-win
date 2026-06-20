@@ -28,6 +28,7 @@ public:
     virtual ~KLoginCredential();
 
     void SetTargetUserSid(const std::wstring& sid);
+    void SetTargetAccountName(const std::wstring& accountName);
 
     IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override;
     IFACEMETHODIMP_(ULONG) AddRef() override;
@@ -71,8 +72,10 @@ private:
     std::wstring _localPassword;
     std::wstring _statusText;
     std::wstring _userSid;
+    std::wstring _targetAccountName;
 
     HRESULT UpdateFields();
+    HRESULT ValidateMappedUser();
     HRESULT PerformLogin();
     HRESULT PerformSelect();
 };

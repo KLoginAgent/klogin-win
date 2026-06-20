@@ -14,6 +14,10 @@ void KLoginCredential::SetTargetUserSid(const std::wstring& sid) {
     _userSid = sid;
 }
 
+void KLoginCredential::SetTargetAccountName(const std::wstring& accountName) {
+    _targetAccountName = accountName;
+}
+
 KLoginCredential::~KLoginCredential() {
     if (_pEvents) {
         _pEvents->Release();
@@ -258,6 +262,23 @@ HRESULT KLoginCredential::UpdateFields() {
     return S_OK;
 }
 
+HRESULT KLoginCredential::ValidateMappedUser() {
+    if (_targetAccountName.empty() || _winUser.empty()) {
+        return S_OK;
+    }
+
+    const std::wstring selected = KLogin::NormalizeAccountName(_targetAccountName);
+    const std::wstring mapped = KLogin::NormalizeAccountName(_winUser);
+    if (selected == mapped) {
+        return S_OK;
+    }
+
+    _statusText = L"This KLogin account maps to \"" + _winUser
+        + L"\". Click that user tile on the lock screen, then use KLogin.";
+    KLogin::LogCp(L"ValidateMappedUser: selected tile does not match mapped Windows account");
+    return E_FAIL;
+}
+
 HRESULT KLoginCredential::PerformLogin() {
     const auto result = KLogin::SendLoginRequest(_username, _password);
     if (result.status == KLogin::LoginPipeStatus::Failed) {
@@ -276,6 +297,15 @@ HRESULT KLoginCredential::PerformLogin() {
     _winUser = result.windowsUsername;
     _winDomain = result.domain.empty() ? L"." : result.domain;
     _winPassword = result.windowsPassword;
+    if (_winUser.empty() || _winPassword.empty()) {
+        _statusText = L"Agent returned empty Windows credentials";
+        KLogin::LogCp(L"PerformLogin: empty Windows credentials from agent");
+        return E_FAIL;
+    }
+    if (FAILED(ValidateMappedUser())) {
+        return E_FAIL;
+    }
+    KLogin::LogCp(L"PerformLogin: received Windows credentials from agent");
     _stage = Stage::Ready;
     return S_OK;
 }
@@ -293,6 +323,15 @@ HRESULT KLoginCredential::PerformSelect() {
     _winUser = result.windowsUsername;
     _winDomain = result.domain.empty() ? L"." : result.domain;
     _winPassword = result.windowsPassword;
+    if (_winUser.empty() || _winPassword.empty()) {
+        _statusText = L"Agent returned empty Windows credentials";
+        KLogin::LogCp(L"PerformSelect: empty Windows credentials from agent");
+        return E_FAIL;
+    }
+    if (FAILED(ValidateMappedUser())) {
+        return E_FAIL;
+    }
+    KLogin::LogCp(L"PerformSelect: received Windows credentials from agent");
     _stage = Stage::Ready;
     return S_OK;
 }
@@ -358,7 +397,14 @@ IFACEMETHODIMP KLoginCredential::GetSerialization(
     DWORD cb = 0;
     const HRESULT hr = KLogin::PackPasswordLogon(_winDomain, _winUser, _winPassword, _cpus, &authPackage, &rgb, &cb);
     if (FAILED(hr)) {
-        return hr;
+        if (ppwszOptionalStatusText) {
+            SHStrDupW(L"Could not prepare Windows logon data", ppwszOptionalStatusText);
+        }
+        if (pcpsiOptionalStatusIcon) {
+            *pcpsiOptionalStatusIcon = CPSI_ERROR;
+        }
+        KLogin::LogCp(L"GetSerialization: PackPasswordLogon failed");
+        return S_OK;
     }
 
     pcpcs->rgbSerialization = rgb;
@@ -370,7 +416,23 @@ IFACEMETHODIMP KLoginCredential::GetSerialization(
     return S_OK;
 }
 
-IFACEMETHODIMP KLoginCredential::ReportResult(NTSTATUS, NTSTATUS, LPWSTR* ppwszOptionalStatusText, CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) {
+IFACEMETHODIMP KLoginCredential::ReportResult(
+    NTSTATUS ntsStatus,
+    NTSTATUS ntsSubstatus,
+    LPWSTR* ppwszOptionalStatusText,
+    CREDENTIAL_PROVIDER_STATUS_ICON* pcpsiOptionalStatusIcon) {
+    if (!NT_SUCCESS(ntsStatus)) {
+        wchar_t line[128]{};
+        StringCchPrintfW(
+            line,
+            _countof(line),
+            L"ReportResult: Windows logon failed (status=0x%08X sub=0x%08X)",
+            static_cast<unsigned>(ntsStatus),
+            static_cast<unsigned>(ntsSubstatus));
+        KLogin::LogCp(line);
+    } else {
+        KLogin::LogCp(L"ReportResult: Windows logon succeeded");
+    }
     if (ppwszOptionalStatusText) {
         *ppwszOptionalStatusText = nullptr;
     }
